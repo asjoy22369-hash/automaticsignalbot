@@ -1,113 +1,77 @@
-import asyncio
-import datetime
 import logging
+from telegram import Update
+from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler
+from datetime import datetime
+import pytz
 import random
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.ext import (
-    ApplicationBuilder,
-    CallbackQueryHandler,
-    CommandHandler,
-    ContextTypes,
+
+# Logging setup
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO
 )
 
-# তোর টোকেন এখানে বসানো আছে
+# তোর API Token এখানে বসানো আছে
 TOKEN = "9064976363:AAF5y_IVLOQYFCkbsEGlKKR8ae3zKxu6Hsk"
 
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    level=logging.INFO,
-)
+# রিয়েল পিরিয়ড নাম্বার জেনারেট করার ফাংশন (Wingo 30s লজিক)
+def generate_wingo_period():
+    # বাংলাদেশ সময় জোন সেট করা
+    bd_tz = pytz.timezone('Asia/Dhaka')
+    now = datetime.now(bd_tz)
+    
+    # ফরম্যাট: YYYYMMDD + Total Seconds of the day divided by 30
+    date_str = now.strftime("%Y%m%d")
+    total_seconds = now.hour * 3600 + now.minute * 60 + now.second
+    period_index = (total_seconds // 30) + 1000  # একটা নির্দিষ্ট বেস নাম্বার যোগ করা
+    
+    period_number = f"{date_str}100{period_index}"
+    return period_number
 
-user_signals = {}
+# সিগন্যাল জেনারেট করার ফাংশন (Big/Small অথবা Small/Big)
+def generate_signal():
+    options = ["🔴 BIG (বড়)", "🟢 SMALL (ছোট)"]
+    colors = ["Red 🔴", "Green 🟢"]
+    
+    prediction = random.choice(options)
+    return prediction
 
-
+# /start কমান্ড হ্যান্ডলার
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-  keyboard = [[InlineKeyboardButton("🟢 Wingo 30s Market", callback_data="wingo_30s")]]
-  reply_markup = InlineKeyboardMarkup(keyboard)
-
-  welcome_text = (
-      "👑 **স্বাগতম উইনগো সিগন্যাল বোটে!**\n\n"
-      "নিচের বাটন থেকে মার্কেট সিলেক্ট করে অটোমেটিক সিগন্যাল পাওয়া শুরু করো।"
-  )
-  await update.message.reply_text(
-      welcome_text, reply_markup=reply_markup, parse_mode="Markdown"
-  )
-
-
-async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
-  query = update.callback_query
-  await query.answer()
-  user_id = query.from_user.id
-
-  if query.data == "wingo_30s":
-    if user_signals.get(user_id):
-      await query.edit_message_text(
-          "⚠️ তোমার সিগন্যাল অলরেডি রানিং আছে!"
-      )
-      return
-
-    user_signals[user_id] = True
-    keyboard = [
-        [InlineKeyboardButton("❌ সিগন্যাল বন্ধ করো", callback_data="stop_signal")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
-    await query.edit_message_text(
-        "🚀 **Wingo 30s** মার্কেট সিগন্যাল শুরু হয়েছে!\nপ্রতি ৩০ সেকেন্ড পরপর আপডেট আসবে।",
-        reply_markup=reply_markup,
-        parse_mode="Markdown",
+    user_name = update.effective_user.first_name
+    welcome_text = (
+        f"হ্যালো {user_name}! 🚀\n"
+        f"Wingo 30s অটোমেটেড সিগন্যাল বটে আপনাকে স্বাগতম।\n\n"
+        f"রিয়েল-টাইম সিগন্যাল পেতে নিচের কমান্ডটি ব্যবহার করুন:\n"
+        f"👉 /signal - বর্তমান পিরিয়ডের সিগন্যাল দেখতে"
     )
+    await update.message.reply_text(welcome_text)
 
-    while user_signals.get(user_id, False):
-      try:
-        now = datetime.datetime.now()
-        period_no = (
-            now.strftime("%Y%m%d")
-            + "100"
-            + str(now.hour * 3600 + now.minute * 60 + now.second // 30)
-        )
-
-        signal_result = random.choice(["🟢 BIG", "🔴 SMALL"])
-
-        signal_msg = (
-            f"📊 **Wingo 30s Signal**\n"
-            f"━━━━━━━━━━━━━━━━━━━\n"
-            f"🔢 **Period No:** `{period_no}`\n"
-            f"🎯 **Prediction:** {signal_result}\n"
-            f"⏳ **Time:** {now.strftime('%H:%M:%S')}\n"
-            f"━━━━━━━━━━━━━━━━━━━"
-        )
-
-        await context.bot.send_message(
-            chat_id=query.message.chat_id,
-            text=signal_msg,
-            parse_mode="Markdown",
-        )
-
-        await asyncio.sleep(30)
-      except Exception as e:
-        logging.error(f"Error in signal loop: {e}")
-        break
-
-  elif query.data == "stop_signal":
-    user_signals[user_id] = False
-    keyboard = [[InlineKeyboardButton("🟢 Wingo 30s Market", callback_data="wingo_30s")]]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
-    await query.edit_message_text(
-        "⏹️ সিগন্যাল বন্ধ করা হয়েছে। পুনরায় শুরু করতে চাইলে নিচের বাটনে ক্লিক করো:",
-        reply_markup=reply_markup,
+# /signal কমান্ড হ্যান্ডলার (রিয়েল পিরিয়ড ও সিগন্যাল সহ)
+async def get_signal(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    current_period = generate_wingo_period()
+    signal_result = generate_signal()
+    
+    response_text = (
+        f"📊 **Wingo 30s Live Signal** 📊\n\n"
+        f"🆔 **Period No:** `{current_period}`\n"
+        f"🎯 **Prediction:** *{signal_result}*\n"
+        f"⏳ **Timeframe:** 30 Seconds\n\n"
+        f"⚠️ *সতর্কতা: নিজের দায়িত্বে ট্রেড করুন!*"
     )
-
+    await update.message.reply_text(response_text, parse_mode='Markdown')
 
 def main():
-  app = ApplicationBuilder().token(TOKEN).build()
-  app.add_handler(CommandHandler("start", start))
-  app.add_handler(CallbackQueryHandler(button))
+    # Application builder দিয়ে বট ইনিশিয়ালাইজ করা
+    application = ApplicationBuilder().token(TOKEN).build()
 
-  print("🤖 বট সফলভাবে চালু হয়েছে এবং কাজ করছে...")
-  app.run_polling()
+    # কমান্ড হ্যান্ডলারগুলো রেজিস্টার করা
+    application.add_handler(CommandHandler('start', start))
+    application.add_handler(CommandHandler('signal', get_signal))
 
+    # Polling শুরু করা
+    print("Bot is starting polling with real period logic...")
+    application.run_polling()
 
-if __name__ == "__main__":
-  main()
+if __name__ == '__main__':
+    main()
