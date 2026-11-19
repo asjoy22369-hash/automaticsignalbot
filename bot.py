@@ -22,7 +22,7 @@ CHANNEL_URL = "https://t.me/bdincomesitehgnice"
 OWNER_USERNAME = "@BDT588"
 OWNER_CONTACT_URL = "https://t.me/BDT588"
 
-# কয়েন ডিপোজিট ও রেফারেল কনফিগারেশন
+# কয়েন ডিপোজিট ও রেফারেল কনফিগারেশন (প্রয়োজন অনুযায়ী ওয়ালেট অ্যাড্রেস বদলে নিবি)
 MIN_COIN_DEPOSIT = "10 USDT"
 COIN_WALLETS_INFO = (
     "• **USDT (TRC20):** `TYourTRC20WalletAddressHere`\n"
@@ -543,7 +543,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             return
 
         # আগের পিরিয়ডের সেকেন্ড শেষ হয়ে নতুন পিরিয়ড শুরু হয়েছে:
-        # ১) আগে আগের পিরিয়ডের রেজাল্ট (উইন হলে কনগ্রাচুলেশনস) পাঠাবে
+        # ১) আগে আগের পিরিয়ডের রেজাল্ট পাঠাবে
         if prev_period and prev_period != current_period and isinstance(prev_pred, str) and prev_pred in ("BIG", "SMALL"):
             result_msg = format_result_announcement(
                 user_name=user.first_name,
@@ -555,10 +555,10 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
         # ২) তারপর নতুন পিরিয়ডের নতুন সিগন্যাল কার্ড পাঠাবে
         card, pred_type = format_market_signal_card(
-            user.first_name,
-            market_key,
-            current_period,
-            time_left,
+            user_name=user.first_name,
+            market_key=market_key,
+            current_period=current_period,
+            time_left=time_left,
         )
         state["last_period"] = current_period
         state["last_pred"] = pred_type
