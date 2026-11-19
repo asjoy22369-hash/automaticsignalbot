@@ -28,8 +28,7 @@ MARKETS: dict[str, tuple[str, int, int]] = {
     "5M": ("5M (৫ মিনিট)", 300, 5000),
 }
 
-# ইউজার স্টেট:
-# {user_id: {"name": str, "market": str | None, "last_period": str, "last_pred": str | None, "auto": bool}}
+# ইউজার স্টেট ট্র্যাক করার ডিকশনারি
 user_states: dict[int, dict[str, object]] = {}
 
 
@@ -100,7 +99,7 @@ def format_result_announcement(
             f"🎲 **𝐑𝐄𝐒𝐔𝐋𝐓** ➤ **{actual_size}** (`#{actual_num}`)\n"
             f"✅ **𝐒𝐓𝐀𝐓𝐔𝐒** ➤ **উইন হয়েছে, কনগ্রাচুলেশনস! 🥳**\n"
             f"▱▱▱▱▱▱▱▱▱▱▱▱▱▱\n"
-            f"🚀 *এখন নতুন সিগন্যাল পাঠানো হচ্ছে...*"
+            f"🚀 *নতুন সিগন্যাল নিচে দেওয়া হলো 👇*"
         )
 
     return (
@@ -113,7 +112,7 @@ def format_result_announcement(
         f"🎲 **𝐑𝐄𝐒𝐔𝐋𝐓** ➤ **{actual_size}** (`#{actual_num}`)\n"
         f"❌ **𝐒𝐓𝐀𝐓𝐔𝐒** ➤ **LOSS (পরের রাউন্ডে ধৈর্য ধরে এগিয়ে যান)**\n"
         f"▱▱▱▱▱▱▱▱▱▱▱▱▱▱\n"
-        f"🚀 *নতুন সিগন্যাল শুরু হচ্ছে...*"
+        f"🚀 *নতুন সিগন্যাল নিচে দেওয়া হলো 👇*"
     )
 
 
@@ -218,7 +217,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         await update.message.reply_text(
             f"👑 **OWNER OF JOY — VIP ACCESS** 👑\n\n"
             f"🔒 **সিগন্যাল পেতে হলে আগে আমাদের টেলিগ্রাম চ্যানেলে জয়েন করতে হবে!**\n\n"
-            f"নিচের বাটনে ক্লিক করে চ্যানেলে জয়েন করুন, তারপর **✅ জয়েন ভেরিফাই করুন** চাপুন。\n\n"
+            f"নিচের বাটনে ক্লিক করে চ্যানেলে জয়েন করুন, তারপর **✅ জয়েন ভেরিফাই করুন** চাপুন।\n\n"
             f"📞 যেকোনো সমস্যা হলে যোগাযোগ করুন: {OWNER_USERNAME}",
             parse_mode="Markdown",
             reply_markup=get_join_verify_keyboard(),
@@ -353,6 +352,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         state["last_period"] = period
         state["last_pred"] = pred_type
         state["auto"] = True
+        logger.info(f"User {user.id} selected market {market_key}, initial period={period}")
 
         await query.answer(f"{market_key} মার্কেট সিলেক্ট হয়েছে!")
         await query.message.reply_text(
@@ -388,8 +388,8 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
 async def auto_market_signal_job(context: ContextTypes.DEFAULT_TYPE) -> None:
     """
-    প্রতি ২ সেকেন্ডে চেক করে বর্তমান পিরিয়ড এবং আগের পিরিয়ড আলাদা কি না।
-    ভিন্ন হওয়া মাত্রই আগেরটার রেজাল্ট এবং নতুন পিরিয়ডের সিগন্যাল পাঠিয়ে দেয়।
+    প্রতি ২ সেকেন্ডে ব্যাকগ্রাউন্ডে রান হয়ে চেক করবে পিরিয়ড চেঞ্জ হয়েছে কি না।
+    চেঞ্জ হওয়া মাত্রই আগেরটার রেজাল্ট এবং নতুন পিরিয়ডের সিগন্যাল পুশ করবে।
     """
     if not user_states:
         return
@@ -404,23 +404,23 @@ async def auto_market_signal_job(context: ContextTypes.DEFAULT_TYPE) -> None:
         prev_period = str(state.get("last_period") or "")
         prev_pred = state.get("last_pred")
 
-        # যদি এখনো last_period সেট না থাকে, তবে বর্তমান পিরিয়ড সেট করে নেব
+        # যদি কোনো কারণে last_period ফাঁকা থাকে, তবে বর্তমানটা সেট করে নেব
         if not prev_period:
             state["last_period"] = current_period
-            _, _, _, lucky_num = generate_signal_for_market(market_key, current_period)
-            # প্রাথমিক প্রেডিকশন টাইপ বের করা
             _, act_text, _, _ = generate_signal_for_market(market_key, current_period)
             state["last_pred"] = "BIG" if "BIG" in act_text else "SMALL"
             continue
 
+        # পিরিয়ড বদলানোর সাথে সাথেই রেজাল্ট ও নতুন সিগন্যাল পাঠানো হবে
         if prev_period != current_period:
             if not await is_user_joined(user_id, context):
+                logger.warning(f"User {user_id} left channel. Pausing auto signals.")
                 state["market"] = None
                 continue
 
             user_name = str(state.get("name") or "Trader")
             try:
-                # ১) আগের পিরিয়ডের রেজাল্ট বা কনগ্রাচুলেশনস মেসেজ পাঠানো
+                # ১. আগের রাউন্ডের উইন/লস রেজাল্ট অ্যানাউন্সমেন্ট পাঠানো
                 if isinstance(prev_pred, str) and prev_pred in ("BIG", "SMALL"):
                     result_msg = format_result_announcement(
                         user_name=user_name,
@@ -434,7 +434,7 @@ async def auto_market_signal_job(context: ContextTypes.DEFAULT_TYPE) -> None:
                         parse_mode="Markdown",
                     )
 
-                # ২) নতুন পিরিয়ডের সিগন্যাল কার্ড তৈরি ও পাঠানো
+                # ২. নতুন পিরিয়ডের রিয়েল-টাইম সিগন্যাল কার্ড পাঠানো
                 new_card, new_pred = format_market_signal_card(
                     user_name=user_name,
                     market_key=market_key,
@@ -443,7 +443,6 @@ async def auto_market_signal_job(context: ContextTypes.DEFAULT_TYPE) -> None:
                     auto_on=True,
                 )
                 
-                # স্টেট আপডেট করা যাতে পরের রাউন্ডে আবার ঠিকভাবে কাজ করে
                 state["last_period"] = current_period
                 state["last_pred"] = new_pred
 
@@ -453,8 +452,9 @@ async def auto_market_signal_job(context: ContextTypes.DEFAULT_TYPE) -> None:
                     parse_mode="Markdown",
                     reply_markup=get_signal_control_keyboard(True),
                 )
+                logger.info(f"Auto pushed new signal for user {user_id} | Market: {market_key} | Period: {current_period}")
             except Exception as e:
-                logger.warning(f"Failed to send result/signal to {user_id}: {e}")
+                logger.error(f"Error auto pushing signal to user {user_id}: {e}")
 
 
 def main() -> None:
@@ -465,12 +465,14 @@ def main() -> None:
     app.add_handler(CommandHandler("about", about_command))
     app.add_handler(CallbackQueryHandler(callback_handler))
 
+    # সরাসরি JobQueue রান করানোর নিখুঁত পদ্ধতি
     if app.job_queue:
         app.job_queue.run_repeating(auto_market_signal_job, interval=2, first=2)
+        logger.info("JobQueue successfully attached and running every 2 seconds.")
     else:
-        logger.warning("JobQueue is not available. Add python-telegram-bot[job-queue] to requirements.txt.")
+        logger.critical("JobQueue is missing! Please make sure python-telegram-bot[job-queue] is in requirements.txt.")
 
-    logger.info("Owner of JOY VIP Signal Bot with Real-time Auto Market Rotation started...")
+    logger.info("Owner of JOY VIP Signal Bot is fully running...")
     app.run_polling(drop_pending_updates=True)
 
 
