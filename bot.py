@@ -91,6 +91,7 @@ def format_result_announcement(
     if is_win:
         return (
             f"🏆 **CONGRATULATIONS! WIN!** 🎉\n"
+            f"👑 **OWNER OF JOY — জয় (JOY)** 👑\n"
             f"▱▱▱▱▱▱▱▱▱▱▱▱▱▱\n"
             f"👤 *Trader:* `{user_name}`\n"
             f"📊 **𝐌𝐀𝐑𝐊𝐄𝐓** ➤ **{market_label}**\n"
@@ -99,11 +100,13 @@ def format_result_announcement(
             f"🎲 **𝐑𝐄𝐒𝐔𝐋𝐓** ➤ **{actual_size}** (`#{actual_num}`)\n"
             f"✅ **𝐒𝐓𝐀𝐓𝐔𝐒** ➤ **উইন হয়েছে, কনগ্রাচুলেশনস! 🥳**\n"
             f"▱▱▱▱▱▱▱▱▱▱▱▱▱▱\n"
+            f"🌟 *জয় (JOY)-এর পক্ষ থেকে আন্তরিক অভিনন্দন!*\n"
             f"🚀 *নতুন সিগন্যাল নিচে দেওয়া হলো 👇*"
         )
 
     return (
         f"📌 **ROUND RESULT UPDATE** 📌\n"
+        f"👑 **OWNER OF JOY — জয় (JOY)** 👑\n"
         f"▱▱▱▱▱▱▱▱▱▱▱▱▱▱\n"
         f"👤 *Trader:* `{user_name}`\n"
         f"📊 **𝐌𝐀𝐑𝐊𝐄𝐓** ➤ **{market_label}**\n"
@@ -112,6 +115,7 @@ def format_result_announcement(
         f"🎲 **𝐑𝐄𝐒𝐔𝐋𝐓** ➤ **{actual_size}** (`#{actual_num}`)\n"
         f"❌ **𝐒𝐓𝐀𝐓𝐔𝐒** ➤ **LOSS (পরের রাউন্ডে ধৈর্য ধরে এগিয়ে যান)**\n"
         f"▱▱▱▱▱▱▱▱▱▱▱▱▱▱\n"
+        f"💡 *জয় (JOY)-এর বার্তা: ধৈর্য ও শৃঙ্খলাই আসল শক্তি।*\n"
         f"🚀 *নতুন সিগন্যাল নিচে দেওয়া হলো 👇*"
     )
 
@@ -128,7 +132,7 @@ def format_market_signal_card(
     auto_status = "ON (Auto)" if auto_on else "OFF"
 
     card = (
-        f"👑 **OWNER OF JOY — VIP SIGNAL** 👑\n"
+        f"👑 **OWNER OF JOY — জয় (JOY)** 👑\n"
         f"👤 *Trader:* `{user_name}`\n"
         f"▱▱▱▱▱▱▱▱▱▱▱▱▱▱\n"
         f"📊 **𝐌𝐀𝐑𝐊𝐄𝐓** ➤ **{market_label}**\n"
@@ -139,10 +143,28 @@ def format_market_signal_card(
         f"🔢 **𝐍𝐔𝐌𝐁𝐄𝐑** ➤ 💠  {lucky_num}\n"
         f"▱▱▱▱▱▱▱▱▱▱▱▱▱▱\n"
         f"🤖 *Auto Signal:* `{auto_status}`\n"
-        f"💡 *পরামর্শ: ধৈর্য ও সঠিক মানি ম্যানেজমেন্ট মেনে চলুন।*\n"
-        f"📞 *সাপোর্ট ও যোগাযোগ:* {OWNER_USERNAME}"
+        f"✨ *Guided by:* **জয় (JOY)** | *Contact:* {OWNER_USERNAME}\n"
+        f"💡 *পরামর্শ: আবেগ নয়, ধৈর্য ও মানি ম্যানেজমেন্ট মেনে চলুন।*"
     )
     return card, pred_type
+
+
+def build_joy_about_message() -> str:
+    return (
+        f"👑 **OWNER OF JOY — জয় (JOY)** 👑\n"
+        f"▱▱▱▱▱▱▱▱▱▱▱▱▱▱\n"
+        f"🌟 **পরিচালনায়:** **জয় (JOY)**\n"
+        f"📲 **সরাসরি যোগাযোগ:** {OWNER_USERNAME}\n\n"
+        f"💎 **জয় (JOY) সম্পর্কে কিছু কথা:**\n"
+        f"**জয় (JOY)** একজন পরিশ্রমী, দূরদর্শী ও দায়িত্বশীল মানুষ, যিনি সবসময় ইউজারদের সঠিক দিকনির্দেশনা, "
+        f"গোছানো সিস্টেম এবং আন্তরিক সহযোগিতা দেওয়ার চেষ্টা করেন। কঠিন সময়েও মাথা ঠান্ডা রেখে কীভাবে "
+        f"সঠিক সিদ্ধান্ত নিতে হয় এবং নিজের লক্ষ্য ঠিক রাখতে হয়—এই মানসিকতাই **জয়**-কে আলাদা করে তোলে।\n\n"
+        f"📖 **শিক্ষামূলক ও মোটিভেশনাল বার্তা:**\n"
+        f"• *সফলতা কখনো ভাগ্যের ওপর ছেড়ে দেওয়ার বিষয় নয়; এটি তৈরি হয় ধৈর্য, নিয়মানুবর্তিতা এবং সঠিক পরিকল্পনার মাধ্যমে।*\n"
+        f"• *প্রতিটি জয় থেকে বিনয়ী থাকুন, আর প্রতিটি ভুল থেকে শিখে আরও শক্তিশালী হয়ে উঠুন।*\n"
+        f"• *নিজের সীমা ও বাজেট বুঝে চলুন—আত্মনিয়ন্ত্রণই একজন স্মার্ট মানুষের সবচেয়ে বড় সম্পদ।*\n\n"
+        f"📞 **যেকোনো সমস্যা বা পরামর্শের জন্য যোগাযোগ করুন:** {OWNER_USERNAME}"
+    )
 
 
 async def is_user_joined(user_id: int, context: ContextTypes.DEFAULT_TYPE) -> bool:
@@ -159,7 +181,7 @@ def get_join_verify_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("📢 টেলিগ্রাম চ্যানেল জয়েন", url=CHANNEL_URL)],
         [InlineKeyboardButton("✅ জয়েন ভেরিফাই করুন", callback_data="verify_join")],
-        [InlineKeyboardButton("💬 যোগাযোগ করুন (JOY)", url=OWNER_CONTACT_URL)],
+        [InlineKeyboardButton("💬 জয় (JOY)-এর সাথে যোগাযোগ", url=OWNER_CONTACT_URL)],
     ])
 
 
@@ -174,7 +196,7 @@ def get_market_selection_keyboard() -> InlineKeyboardMarkup:
             InlineKeyboardButton("🕔 ৫ মিনিট (5M)", callback_data="select_market_5M"),
         ],
         [
-            InlineKeyboardButton("ℹ️ জয় সম্পর্কে ও নির্দেশনা", callback_data="about_joy"),
+            InlineKeyboardButton("👑 জয় (JOY) সম্পর্কে জানুন", callback_data="about_joy"),
             InlineKeyboardButton("💬 যোগাযোগ (@BDT588)", url=OWNER_CONTACT_URL),
         ],
     ])
@@ -187,20 +209,25 @@ def get_signal_control_keyboard(auto_on: bool) -> InlineKeyboardMarkup:
         else InlineKeyboardButton("▶️ অটো অন করুন", callback_data="auto_on")
     )
     return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🔄 নতুন সিগন্যাল নিন", callback_data="get_new_signal")],
         [toggle_btn, InlineKeyboardButton("🔄 মার্কেট পরিবর্তন", callback_data="change_market")],
-        [InlineKeyboardButton("💬 সমস্যা হলে যোগাযোগ করুন (JOY)", url=OWNER_CONTACT_URL)],
+        [
+            InlineKeyboardButton("👑 জয় (JOY)", callback_data="about_joy"),
+            InlineKeyboardButton("💬 যোগাযোগ (@BDT588)", url=OWNER_CONTACT_URL),
+        ],
     ])
 
 
 async def send_market_prompt(message_obj, user_name: str) -> None:
     text = (
-        f"👑 **OWNER OF JOY — VIP TERMINAL** 👑\n\n"
+        f"👑 **OWNER OF JOY — জয় (JOY)** 👑\n\n"
         f"স্বাগতম প্রিয় **{user_name}**! 🌟\n"
-        f"আমাদের এই প্ল্যাটফর্মটি **জয় (JOY)**-এর তত্ত্বাবধানে পরিচালিত, যেখানে প্রযুক্তির মাধ্যমে আপনাকে নিখুঁত সময় ও ডেটা বিশ্লেষণের সহায়তা দেওয়া হয়।\n\n"
+        f"এই সিস্টেমটি পরিচালনা করছেন **জয় (JOY)**। তিনি সবসময় চান ইউজাররা যেন একটি সুন্দর, পরিচ্ছন্ন এবং "
+        f"দায়িত্বশীল অভিজ্ঞতা পান। **জয়**-এর বিশ্বাস—সঠিক গাইডলাইন, ধৈর্য এবং পরিশ্রম মানুষকে সঠিক পথে এগিয়ে নেয়।\n\n"
         f"📖 **শিক্ষামূলক ও মোটিভেশনাল বার্তা:**\n"
-        f"• *সফলতা কখনো তাড়াহুড়োয় আসে না; সঠিক পরিকল্পনা, ধৈর্য এবং আত্মনিয়ন্ত্রণই আপনাকে এগিয়ে নেবে।*\n"
-        f"• *সবসময় নিজের বাজেট ও ঝুঁকি বুঝে সিদ্ধান্ত নিন—শৃঙ্খলাই একজন স্মার্ট মানুষের সবচেয়ে বড় শক্তি।*\n\n"
-        f"📞 **যেকোনো সমস্যা বা পরামর্শের জন্য যোগাযোগ করুন:** {OWNER_USERNAME}\n"
+        f"• *তাড়াহুড়ো করে নয়, ভেবেচিন্তে ও ধৈর্য ধরে এগিয়ে চলুন—সময় ও শৃঙ্খলাই প্রকৃত সাফল্যের ভিত্তি।*\n"
+        f"• *নিজের সামর্থ্য ও মানি ম্যানেজমেন্টের বাইরে কখনো যাবেন না; বুদ্ধিমত্তাই সবচেয়ে বড় পুঁজি।*\n\n"
+        f"📞 **যেকোনো সমস্যা বা পরামর্শে যোগাযোগ করুন:** {OWNER_USERNAME}\n"
         f"▱▱▱▱▱▱▱▱▱▱▱▱▱▱\n"
         f"👇 **আপনি কোন মার্কেটে ট্রেড করতে চান? নিচে থেকে সিলেক্ট করুন:**"
     )
@@ -215,10 +242,10 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     joined = await is_user_joined(user.id, context)
     if not joined:
         await update.message.reply_text(
-            f"👑 **OWNER OF JOY — VIP ACCESS** 👑\n\n"
+            f"👑 **OWNER OF JOY — জয় (JOY)** 👑\n\n"
             f"🔒 **সিগন্যাল পেতে হলে আগে আমাদের টেলিগ্রাম চ্যানেলে জয়েন করতে হবে!**\n\n"
             f"নিচের বাটনে ক্লিক করে চ্যানেলে জয়েন করুন, তারপর **✅ জয়েন ভেরিফাই করুন** চাপুন।\n\n"
-            f"📞 যেকোনো সমস্যা হলে যোগাযোগ করুন: {OWNER_USERNAME}",
+            f"📞 যেকোনো সমস্যা হলে **জয় (JOY)**-এর সাথে যোগাযোগ করুন: {OWNER_USERNAME}",
             parse_mode="Markdown",
             reply_markup=get_join_verify_keyboard(),
         )
@@ -241,7 +268,7 @@ async def market_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     if not await is_user_joined(user.id, context):
         await update.message.reply_text(
-            f"🔒 **আগে টেলিগ্রাম চ্যানেলে জয়েন করুন!**\n\nসমস্যা হলে যোগাযোগ করুন: {OWNER_USERNAME}",
+            f"🔒 **আগে টেলিগ্রাম চ্যানেলে জয়েন করুন!**\n\nসমস্যা হলে **জয় (JOY)**-এর সাথে যোগাযোগ করুন: {OWNER_USERNAME}",
             parse_mode="Markdown",
             reply_markup=get_join_verify_keyboard(),
         )
@@ -254,22 +281,11 @@ async def about_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     if not update.message:
         return
 
-    about_text = (
-        f"👑 **ABOUT OWNER OF JOY** 👑\n"
-        f"▱▱▱▱▱▱▱▱▱▱▱▱▱▱\n"
-        f"✨ **পরিচালনায়:** জয় (JOY)\n"
-        f"📲 **সরাসরি যোগাযোগ:** {OWNER_USERNAME}\n\n"
-        f"🌟 **আমাদের লক্ষ্য ও বার্তা:**\n"
-        f"প্রযুক্তি ও সঠিক বিশ্লেষণের মাধ্যমে ইউজারদের একটি গোছানো ও সহজ অভিজ্ঞতা দেওয়াই **জয়**-এর মূল লক্ষ্য। "
-        f"মনে রাখবেন, জীবনে বড় কিছু অর্জন করতে হলে শেখার মানসিকতা, ধৈর্য এবং সঠিক সিদ্ধান্ত নেওয়ার ক্ষমতা থাকতে হয়।\n\n"
-        f"💡 *\"নিজের ওপর বিশ্বাস রাখুন, আবেগ নিয়ন্ত্রণ করুন এবং প্রতিটি পদক্ষেপ ভেবেচিন্তে নিন।\"*\n\n"
-        f"🛠️ বট ব্যবহারে কোনো অসুবিধা হলে নির্দ্বিধায় মেসেজ দিন: {OWNER_USERNAME}"
-    )
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("💬 জয়-এর সাথে যোগাযোগ করুন", url=OWNER_CONTACT_URL)],
+        [InlineKeyboardButton("💬 জয় (JOY)-এর সাথে যোগাযোগ করুন", url=OWNER_CONTACT_URL)],
         [InlineKeyboardButton("🔙 মার্কেট মেনুতে ফিরে যান", callback_data="change_market")],
     ])
-    await update.message.reply_text(about_text, parse_mode="Markdown", reply_markup=keyboard)
+    await update.message.reply_text(build_joy_about_message(), parse_mode="Markdown", reply_markup=keyboard)
 
 
 async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -314,24 +330,50 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     )
     state["name"] = user.first_name
 
-    if data == "about_joy":
-        await query.answer("জয় সম্পর্কে তথ্য")
-        about_text = (
-            f"👑 **ABOUT OWNER OF JOY** 👑\n"
-            f"▱▱▱▱▱▱▱▱▱▱▱▱▱▱\n"
-            f"✨ **পরিচালনায়:** জয় (JOY)\n"
-            f"📲 **সরাসরি যোগাযোগ:** {OWNER_USERNAME}\n\n"
-            f"🌟 **আমাদের লক্ষ্য ও শিক্ষামূলক বার্তা:**\n"
-            f"সঠিক দিকনির্দেশনা ও প্রযুক্তির সমন্বয়ে ইউজারদের সেরা অভিজ্ঞতা দেওয়াই **জয়**-এর অঙ্গীকার। "
-            f"যেকোনো ক্ষেত্রে সফল হতে হলে ধৈর্যশীল হওয়া, নিয়ম মেনে চলা এবং মানি ম্যানেজমেন্ট অনুসরণ করা অত্যন্ত জরুরি।\n\n"
-            f"💡 *\"জ্ঞান ও ধৈর্যই আপনার সবচেয়ে বড় বিনিয়োগ।\"*\n\n"
-            f"📞 কোনো সমস্যা হলে যোগাযোগ করুন: {OWNER_USERNAME}"
+    if data == "get_new_signal":
+        market_key = state.get("market")
+        if not isinstance(market_key, str) or market_key not in MARKETS:
+            await query.answer("আগে একটি মার্কেট সিলেক্ট করুন!", show_alert=True)
+            await send_market_prompt(query.message, user.first_name)
+            return
+
+        period, time_left = generate_market_period(market_key)
+        prev_period = str(state.get("last_period") or "")
+        prev_pred = state.get("last_pred")
+
+        if prev_period and prev_period != period and isinstance(prev_pred, str) and prev_pred in ("BIG", "SMALL"):
+            result_msg = format_result_announcement(
+                user_name=user.first_name,
+                market_key=market_key,
+                finished_period=prev_period,
+                predicted_type=prev_pred,
+            )
+            await query.message.reply_text(text=result_msg, parse_mode="Markdown")
+
+        card, pred_type = format_market_signal_card(
+            user.first_name,
+            market_key,
+            period,
+            time_left,
+            bool(state.get("auto", True)),
         )
+        state["last_period"] = period
+        state["last_pred"] = pred_type
+
+        await query.answer("নতুন সিগন্যাল পাঠানো হয়েছে! 🔄", show_alert=False)
+        await query.message.reply_text(
+            text=card,
+            parse_mode="Markdown",
+            reply_markup=get_signal_control_keyboard(bool(state.get("auto", True))),
+        )
+
+    elif data == "about_joy":
+        await query.answer("জয় (JOY) সম্পর্কে তথ্য")
         keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("💬 জয়-এর সাথে যোগাযোগ করুন", url=OWNER_CONTACT_URL)],
+            [InlineKeyboardButton("💬 জয় (JOY)-এর সাথে যোগাযোগ করুন", url=OWNER_CONTACT_URL)],
             [InlineKeyboardButton("🔙 মার্কেট সিলেক্ট করুন", callback_data="change_market")],
         ])
-        await query.message.reply_text(text=about_text, parse_mode="Markdown", reply_markup=keyboard)
+        await query.message.reply_text(text=build_joy_about_message(), parse_mode="Markdown", reply_markup=keyboard)
 
     elif data == "change_market":
         state["market"] = None
@@ -352,7 +394,6 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         state["last_period"] = period
         state["last_pred"] = pred_type
         state["auto"] = True
-        logger.info(f"User {user.id} selected market {market_key}, initial period={period}")
 
         await query.answer(f"{market_key} মার্কেট সিলেক্ট হয়েছে!")
         await query.message.reply_text(
@@ -365,7 +406,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         state["auto"] = False
         await query.answer("অটো সিগন্যাল অফ করা হয়েছে ⏸️")
         await query.message.reply_text(
-            text="⏸️ আপনার অটো সিগন্যাল সাময়িকভাবে বন্ধ করা হয়েছে। আবার চালু করতে নিচের বাটনে চাপ দিন।",
+            text="⏸️ আপনার অটো সিগন্যাল সাময়িকভাবে বন্ধ করা হয়েছে। **🔄 নতুন সিগন্যাল নিন** বাটন চাপলে নতুন সিগন্যাল পাবেন।",
             parse_mode="Markdown",
             reply_markup=get_signal_control_keyboard(False),
         )
@@ -387,10 +428,6 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
 
 async def auto_market_signal_job(context: ContextTypes.DEFAULT_TYPE) -> None:
-    """
-    প্রতি ২ সেকেন্ডে ব্যাকগ্রাউন্ডে রান হয়ে চেক করবে পিরিয়ড চেঞ্জ হয়েছে কি না।
-    চেঞ্জ হওয়া মাত্রই আগেরটার রেজাল্ট এবং নতুন পিরিয়ডের সিগন্যাল পুশ করবে।
-    """
     if not user_states:
         return
 
@@ -404,23 +441,13 @@ async def auto_market_signal_job(context: ContextTypes.DEFAULT_TYPE) -> None:
         prev_period = str(state.get("last_period") or "")
         prev_pred = state.get("last_pred")
 
-        # যদি কোনো কারণে last_period ফাঁকা থাকে, তবে বর্তমানটা সেট করে নেব
-        if not prev_period:
-            state["last_period"] = current_period
-            _, act_text, _, _ = generate_signal_for_market(market_key, current_period)
-            state["last_pred"] = "BIG" if "BIG" in act_text else "SMALL"
-            continue
-
-        # পিরিয়ড বদলানোর সাথে সাথেই রেজাল্ট ও নতুন সিগন্যাল পাঠানো হবে
-        if prev_period != current_period:
+        if prev_period and prev_period != current_period:
             if not await is_user_joined(user_id, context):
-                logger.warning(f"User {user_id} left channel. Pausing auto signals.")
                 state["market"] = None
                 continue
 
             user_name = str(state.get("name") or "Trader")
             try:
-                # ১. আগের রাউন্ডের উইন/লস রেজাল্ট অ্যানাউন্সমেন্ট পাঠানো
                 if isinstance(prev_pred, str) and prev_pred in ("BIG", "SMALL"):
                     result_msg = format_result_announcement(
                         user_name=user_name,
@@ -434,7 +461,6 @@ async def auto_market_signal_job(context: ContextTypes.DEFAULT_TYPE) -> None:
                         parse_mode="Markdown",
                     )
 
-                # ২. নতুন পিরিয়ডের রিয়েল-টাইম সিগন্যাল কার্ড পাঠানো
                 new_card, new_pred = format_market_signal_card(
                     user_name=user_name,
                     market_key=market_key,
@@ -442,7 +468,6 @@ async def auto_market_signal_job(context: ContextTypes.DEFAULT_TYPE) -> None:
                     time_left=time_left,
                     auto_on=True,
                 )
-                
                 state["last_period"] = current_period
                 state["last_pred"] = new_pred
 
@@ -452,7 +477,6 @@ async def auto_market_signal_job(context: ContextTypes.DEFAULT_TYPE) -> None:
                     parse_mode="Markdown",
                     reply_markup=get_signal_control_keyboard(True),
                 )
-                logger.info(f"Auto pushed new signal for user {user_id} | Market: {market_key} | Period: {current_period}")
             except Exception as e:
                 logger.error(f"Error auto pushing signal to user {user_id}: {e}")
 
@@ -465,14 +489,13 @@ def main() -> None:
     app.add_handler(CommandHandler("about", about_command))
     app.add_handler(CallbackQueryHandler(callback_handler))
 
-    # সরাসরি JobQueue রান করানোর নিখুঁত পদ্ধতি
     if app.job_queue:
         app.job_queue.run_repeating(auto_market_signal_job, interval=2, first=2)
-        logger.info("JobQueue successfully attached and running every 2 seconds.")
+        logger.info("JobQueue auto_market_signal_job scheduled.")
     else:
-        logger.critical("JobQueue is missing! Please make sure python-telegram-bot[job-queue] is in requirements.txt.")
+        logger.warning("JobQueue is not available. Add python-telegram-bot[job-queue] to requirements.txt.")
 
-    logger.info("Owner of JOY VIP Signal Bot is fully running...")
+    logger.info("OWNER OF JOY — জয় (JOY) VIP Signal Bot started...")
     app.run_polling(drop_pending_updates=True)
 
 
