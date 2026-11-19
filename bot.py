@@ -1,7 +1,9 @@
 import os
 import time
+import threading
 import logging
 import requests
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from datetime import datetime, timezone, timedelta
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -21,6 +23,7 @@ logger = logging.getLogger(__name__)
 
 BOT_TOKEN = os.getenv("BOT_TOKEN", "9049655726:AAGhdmogKzkYOsyzJs-cv-6mtP7pY0PVtWA")
 CHANNEL_ID = os.getenv("CHANNEL_ID", "-1004478174913")
+WEB_PORT = int(os.getenv("PORT", "10000"))
 
 state = {
     "market": "30S",
@@ -31,6 +34,23 @@ state = {
     "number": "1",
     "waiting_for_period": False,
 }
+
+
+class HealthHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("Content-type", "text/plain; charset=utf-8")
+        self.end_headers()
+        self.wfile.write(b"SIDDIK VIP BOT IS RUNNING")
+
+    def log_message(self, format, *args):
+        return
+
+
+def start_web_server() -> None:
+    server = HTTPServer(("0.0.0.0", WEB_PORT), HealthHandler)
+    logger.info("HTTP health server listening on port %s", WEB_PORT)
+    server.serve_forever()
 
 
 def get_countdown_seconds(market: str) -> int:
@@ -214,6 +234,9 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 
 def run_bot_forever() -> None:
+    web_thread = threading.Thread(target=start_web_server, daemon=True)
+    web_thread.start()
+
     while True:
         try:
             app = ApplicationBuilder().token(BOT_TOKEN).build()
