@@ -6,6 +6,8 @@ from telegram.ext import (
     ContextTypes,
     CommandHandler,
     CallbackQueryHandler,
+    MessageHandler,
+    filters,
 )
 
 logging.basicConfig(
@@ -20,6 +22,15 @@ CHANNEL_URL = "https://t.me/bdincomesitehgnice"
 OWNER_USERNAME = "@BDT588"
 OWNER_CONTACT_URL = "https://t.me/BDT588"
 
+# কয়েন ডিপোজিট ও রেফারেল কনফিগারেশন (প্রয়োজন অনুযায়ী অ্যাড্রেস ও মান বদলে নিবি)
+MIN_COIN_DEPOSIT = "10 USDT"
+COIN_WALLETS_INFO = (
+    "• **USDT (TRC20):** `TYourTRC20WalletAddressHere`\n"
+    "• **USDT (BEP20):** `0xYourBEP20WalletAddressHere`\n"
+    "• **TRX (TRON):** `TYourTRXWalletAddressHere`"
+)
+REFERRAL_BONUS_PER_USER = 50
+
 # মার্কেট কনফিগারেশন: key -> (display_label, duration_seconds, base_offset)
 MARKETS: dict[str, tuple[str, int, int]] = {
     "30S": ("30S (৩০ সেকেন্ড)", 30, 50000),
@@ -30,6 +41,43 @@ MARKETS: dict[str, tuple[str, int, int]] = {
 
 # ইউজার স্টেট ট্র্যাক করার ডিকশনারি
 user_states: dict[int, dict[str, object]] = {}
+
+
+def get_or_create_user(user_id: int, user_name: str, referred_by: int | None = None) -> dict[str, object]:
+    state = user_states.get(user_id)
+    if state is None:
+        state = {
+            "name": user_name,
+            "market": None,
+            "last_period": "",
+            "last_pred": None,
+            "referred_by": referred_by,
+            "referrals": [],
+            "referral_bonus": 0,
+            "deposits": [],
+            "awaiting_deposit": False,
+        }
+        user_states[user_id] = state
+    else:
+        state["name"] = user_name
+        if referred_by is not None and state.get("referred_by") is None and referred_by != user_id:
+            state["referred_by"] = referred_by
+    return state
+
+
+def apply_referral_credit(referrer_id: int | None, new_user_id: int) -> None:
+    if not referrer_id or referrer_id == new_user_id:
+        return
+    referrer_state = user_states.get(referrer_id)
+    if not referrer_state:
+        return
+
+    refs = referrer_state.setdefault("referrals", [])
+    if isinstance(refs, list) and new_user_id not in refs:
+        refs.append(new_user_id)
+        current_bonus = int(referrer_state.get("referral_bonus", 0) or 0)
+        referrer_state["referral_bonus"] = current_bonus + REFERRAL_BONUS_PER_USER
+        logger.info(f"Referral credited: referrer={referrer_id}, new_user={new_user_id}")
 
 
 def generate_market_period(market_key: str) -> tuple[str, int]:
@@ -100,7 +148,6 @@ def format_result_announcement(
             f"🎲 **𝐑𝐄𝐒𝐔𝐋𝐓** ➤ **{actual_size}** (`#{actual_num}`)\n"
             f"✅ **𝐒𝐓𝐀𝐓𝐔𝐒** ➤ **উইন হয়েছে, কনগ্রাচুলেশনস! 🥳**\n"
             f"▱▱▱▱▱▱▱▱▱▱▱▱▱▱\n"
-            f"🌟 *জয় (JOY)-এর পক্ষ থেকে আন্তরিক অভিনন্দন!*\n"
             f"🚀 *নতুন সিগন্যাল নিচে দেওয়া হলো 👇*"
         )
 
@@ -113,9 +160,8 @@ def format_result_announcement(
         f"💎 **𝐏𝐄𝐑𝐈𝐎𝐃** ➤ `{finished_period}`\n"
         f"🎯 **𝐀𝐂𝐓𝐈𝐎𝐍** ➤ **BET {predicted_type}**\n"
         f"🎲 **𝐑𝐄𝐒𝐔𝐋𝐓** ➤ **{actual_size}** (`#{actual_num}`)\n"
-        f"❌ **𝐒𝐓𝐀𝐓𝐔𝐒** ➤ **LOSS (পরের রাউন্ডে ধৈর্য ধরে এগিয়ে যান)**\n"
+        f"❌ **𝐒𝐓𝐀𝐓𝐔𝐒** ➤ **LOSS**\n"
         f"▱▱▱▱▱▱▱▱▱▱▱▱▱▱\n"
-        f"💡 *জয় (JOY)-এর বার্তা: ধৈর্য ও শৃঙ্খলাই আসল শক্তি।*\n"
         f"🚀 *নতুন সিগন্যাল নিচে দেওয়া হলো 👇*"
     )
 
@@ -125,11 +171,9 @@ def format_market_signal_card(
     market_key: str,
     period: str,
     time_left: int,
-    auto_on: bool,
 ) -> tuple[str, str]:
     market_label, _, _ = MARKETS[market_key]
     pred_type, action_text, color_text, lucky_num = generate_signal_for_market(market_key, period)
-    auto_status = "ON (Auto)" if auto_on else "OFF"
 
     card = (
         f"👑 **OWNER OF JOY — জয় (JOY)** 👑\n"
@@ -142,28 +186,50 @@ def format_market_signal_card(
         f"🎨 **𝐂𝐎𝐋𝐎𝐑** ➤ {color_text}\n"
         f"🔢 **𝐍𝐔𝐌𝐁𝐄𝐑** ➤ 💠  {lucky_num}\n"
         f"▱▱▱▱▱▱▱▱▱▱▱▱▱▱\n"
-        f"🤖 *Auto Signal:* `{auto_status}`\n"
-        f"✨ *Guided by:* **জয় (JOY)** | *Contact:* {OWNER_USERNAME}\n"
-        f"💡 *পরামর্শ: আবেগ নয়, ধৈর্য ও মানি ম্যানেজমেন্ট মেনে চলুন।*"
+        f"📞 *Contact:* {OWNER_USERNAME}"
     )
     return card, pred_type
 
 
-def build_joy_about_message() -> str:
+async def build_referral_message(user_id: int, user_name: str, context: ContextTypes.DEFAULT_TYPE) -> str:
+    bot_info = await context.bot.get_me()
+    bot_username = bot_info.username or "YourBotUsername"
+    ref_link = f"https://t.me/{bot_username}?start=ref_{user_id}"
+
+    state = get_or_create_user(user_id, user_name)
+    refs = state.get("referrals", [])
+    ref_count = len(refs) if isinstance(refs, list) else 0
+    bonus = int(state.get("referral_bonus", 0) or 0)
+
     return (
-        f"👑 **OWNER OF JOY — জয় (JOY)** 👑\n"
+        f"👥 **রেফারেল সিস্টেম — জয় (JOY)** 👥\n"
         f"▱▱▱▱▱▱▱▱▱▱▱▱▱▱\n"
-        f"🌟 **পরিচালনায়:** **জয় (JOY)**\n"
-        f"📲 **সরাসরি যোগাযোগ:** {OWNER_USERNAME}\n\n"
-        f"💎 **জয় (JOY) সম্পর্কে কিছু কথা:**\n"
-        f"**জয় (JOY)** একজন পরিশ্রমী, দূরদর্শী ও দায়িত্বশীল মানুষ, যিনি সবসময় ইউজারদের সঠিক দিকনির্দেশনা, "
-        f"গোছানো সিস্টেম এবং আন্তরিক সহযোগিতা দেওয়ার চেষ্টা করেন। কঠিন সময়েও মাথা ঠান্ডা রেখে কীভাবে "
-        f"সঠিক সিদ্ধান্ত নিতে হয় এবং নিজের লক্ষ্য ঠিক রাখতে হয়—এই মানসিকতাই **জয়**-কে আলাদা করে তোলে।\n\n"
-        f"📖 **শিক্ষামূলক ও মোটিভেশনাল বার্তা:**\n"
-        f"• *সফলতা কখনো ভাগ্যের ওপর ছেড়ে দেওয়ার বিষয় নয়; এটি তৈরি হয় ধৈর্য, নিয়মানুবর্তিতা এবং সঠিক পরিকল্পনার মাধ্যমে।*\n"
-        f"• *প্রতিটি জয় থেকে বিনয়ী থাকুন, আর প্রতিটি ভুল থেকে শিখে আরও শক্তিশালী হয়ে উঠুন।*\n"
-        f"• *নিজের সীমা ও বাজেট বুঝে চলুন—আত্মনিয়ন্ত্রণই একজন স্মার্ট মানুষের সবচেয়ে বড় সম্পদ।*\n\n"
-        f"📞 **যেকোনো সমস্যা বা পরামর্শের জন্য যোগাযোগ করুন:** {OWNER_USERNAME}"
+        f"👤 *Member:* `{user_name}`\n"
+        f"🔗 *আপনার রেফারেল লিংক:*\n`{ref_link}`\n\n"
+        f"📊 *মোট রেফারেল:* **{ref_count} জন**\n"
+        f"🎁 *মোট রেফার বোনাস:* **{bonus} Coin / Credit**\n"
+        f"✨ *প্রতি সফল রেফারে বোনাস:* **{REFERRAL_BONUS_PER_USER} Coin / Credit**\n\n"
+        f"📞 *Contact:* {OWNER_USERNAME}"
+    )
+
+
+def build_coin_deposit_message(user_id: int, user_name: str) -> str:
+    state = get_or_create_user(user_id, user_name)
+    deposits = state.get("deposits", [])
+    dep_count = len(deposits) if isinstance(deposits, list) else 0
+
+    return (
+        f"🪙 **কয়েনের মাধ্যমে ডিপোজিট করুন — জয় (JOY)** 🪙\n"
+        f"▱▱▱▱▱▱▱▱▱▱▱▱▱▱\n"
+        f"👤 *User:* `{user_name}` (`ID: {user_id}`)\n"
+        f"💰 *সর্বনিম্ন কয়েন ডিপোজিট:* **{MIN_COIN_DEPOSIT}**\n"
+        f"🧾 *জমা দেওয়া কয়েন ডিপোজিট রিকোয়েস্ট:* **{dep_count}টি**\n\n"
+        f"🌐 **কয়েন ওয়ালেট অ্যাড্রেসসমূহ:**\n"
+        f"{COIN_WALLETS_INFO}\n\n"
+        f"📝 **কয়েনে ডিপোজিট করার নিয়ম:**\n"
+        f"১. সঠিক কয়েন ও সঠিক নেটওয়ার্ক সিলেক্ট করে উপরের ওয়ালেট অ্যাড্রেসে কয়েন পাঠান।\n"
+        f"২. নিচের **✍️ কয়েন ডিপোজিট তথ্য জমা দিন** বাটনে চাপ দিয়ে **কয়েনের নাম, অ্যামাউন্ট ও TxID/Hash** লিখে পাঠান (যেমন: `20 USDT TRC20 TxID: 9a8b7c6d`)।\n"
+        f"৩. প্রয়োজনে যোগাযোগ করুন: {OWNER_USERNAME}"
     )
 
 
@@ -181,7 +247,7 @@ def get_join_verify_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("📢 টেলিগ্রাম চ্যানেল জয়েন", url=CHANNEL_URL)],
         [InlineKeyboardButton("✅ জয়েন ভেরিফাই করুন", callback_data="verify_join")],
-        [InlineKeyboardButton("💬 জয় (JOY)-এর সাথে যোগাযোগ", url=OWNER_CONTACT_URL)],
+        [InlineKeyboardButton("💬 যোগাযোগ (@BDT588)", url=OWNER_CONTACT_URL)],
     ])
 
 
@@ -196,38 +262,48 @@ def get_market_selection_keyboard() -> InlineKeyboardMarkup:
             InlineKeyboardButton("🕔 ৫ মিনিট (5M)", callback_data="select_market_5M"),
         ],
         [
-            InlineKeyboardButton("👑 জয় (JOY) সম্পর্কে জানুন", callback_data="about_joy"),
+            InlineKeyboardButton("🪙 কয়েনের মাধ্যমে ডিপোজিট করুন", callback_data="open_coin_deposit"),
+            InlineKeyboardButton("👥 রেফারেল সিস্টেম", callback_data="open_referral"),
+        ],
+        [InlineKeyboardButton("💬 যোগাযোগ (@BDT588)", url=OWNER_CONTACT_URL)],
+    ])
+
+
+def get_signal_control_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🔄 নতুন সিগন্যাল নিন", callback_data="get_new_signal")],
+        [
+            InlineKeyboardButton("🔄 মার্কেট পরিবর্তন", callback_data="change_market"),
+            InlineKeyboardButton("👥 রেফারেল সিস্টেম", callback_data="open_referral"),
+        ],
+        [
+            InlineKeyboardButton("🪙 কয়েনের মাধ্যমে ডিপোজিট করুন", callback_data="open_coin_deposit"),
             InlineKeyboardButton("💬 যোগাযোগ (@BDT588)", url=OWNER_CONTACT_URL),
         ],
     ])
 
 
-def get_signal_control_keyboard(auto_on: bool) -> InlineKeyboardMarkup:
-    toggle_btn = (
-        InlineKeyboardButton("⏸️ অটো অফ করুন", callback_data="auto_off")
-        if auto_on
-        else InlineKeyboardButton("▶️ অটো অন করুন", callback_data="auto_on")
-    )
+def get_coin_deposit_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("🔄 নতুন সিগন্যাল নিন", callback_data="get_new_signal")],
-        [toggle_btn, InlineKeyboardButton("🔄 মার্কেট পরিবর্তন", callback_data="change_market")],
-        [
-            InlineKeyboardButton("👑 জয় (JOY)", callback_data="about_joy"),
-            InlineKeyboardButton("💬 যোগাযোগ (@BDT588)", url=OWNER_CONTACT_URL),
-        ],
+        [InlineKeyboardButton("✍️ কয়েন ডিপোজিট তথ্য জমা দিন", callback_data="submit_coin_deposit")],
+        [InlineKeyboardButton("💬 যোগাযোগ (@BDT588)", url=OWNER_CONTACT_URL)],
+        [InlineKeyboardButton("🔙 মার্কেট মেনুতে ফিরে যান", callback_data="change_market")],
+    ])
+
+
+def get_referral_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🪙 কয়েনের মাধ্যমে ডিপোজিট করুন", callback_data="open_coin_deposit")],
+        [InlineKeyboardButton("💬 যোগাযোগ (@BDT588)", url=OWNER_CONTACT_URL)],
+        [InlineKeyboardButton("🔙 মার্কেট মেনুতে ফিরে যান", callback_data="change_market")],
     ])
 
 
 async def send_market_prompt(message_obj, user_name: str) -> None:
     text = (
         f"👑 **OWNER OF JOY — জয় (JOY)** 👑\n\n"
-        f"স্বাগতম প্রিয় **{user_name}**! 🌟\n"
-        f"এই সিস্টেমটি পরিচালনা করছেন **জয় (JOY)**। তিনি সবসময় চান ইউজাররা যেন একটি সুন্দর, পরিচ্ছন্ন এবং "
-        f"দায়িত্বশীল অভিজ্ঞতা পান। **জয়**-এর বিশ্বাস—সঠিক গাইডলাইন, ধৈর্য এবং পরিশ্রম মানুষকে সঠিক পথে এগিয়ে নেয়।\n\n"
-        f"📖 **শিক্ষামূলক ও মোটিভেশনাল বার্তা:**\n"
-        f"• *তাড়াহুড়ো করে নয়, ভেবেচিন্তে ও ধৈর্য ধরে এগিয়ে চলুন—সময় ও শৃঙ্খলাই প্রকৃত সাফল্যের ভিত্তি।*\n"
-        f"• *নিজের সামর্থ্য ও মানি ম্যানেজমেন্টের বাইরে কখনো যাবেন না; বুদ্ধিমত্তাই সবচেয়ে বড় পুঁজি।*\n\n"
-        f"📞 **যেকোনো সমস্যা বা পরামর্শে যোগাযোগ করুন:** {OWNER_USERNAME}\n"
+        f"স্বাগতম **{user_name}**! 🌟\n"
+        f"পরিচালনায়: **জয় (JOY)** | যোগাযোগ: {OWNER_USERNAME}\n"
         f"▱▱▱▱▱▱▱▱▱▱▱▱▱▱\n"
         f"👇 **আপনি কোন মার্কেটে ট্রেড করতে চান? নিচে থেকে সিলেক্ট করুন:**"
     )
@@ -239,25 +315,34 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     if not user or not update.message:
         return
 
+    referrer_id: int | None = None
+    if context.args:
+        arg = context.args[0].strip()
+        if arg.startswith("ref_"):
+            raw_ref = arg.replace("ref_", "", 1)
+            if raw_ref.isdigit() and int(raw_ref) != user.id:
+                referrer_id = int(raw_ref)
+
+    state = get_or_create_user(user.id, user.first_name, referred_by=referrer_id)
+    if referrer_id is not None:
+        apply_referral_credit(referrer_id, user.id)
+
     joined = await is_user_joined(user.id, context)
     if not joined:
         await update.message.reply_text(
             f"👑 **OWNER OF JOY — জয় (JOY)** 👑\n\n"
             f"🔒 **সিগন্যাল পেতে হলে আগে আমাদের টেলিগ্রাম চ্যানেলে জয়েন করতে হবে!**\n\n"
             f"নিচের বাটনে ক্লিক করে চ্যানেলে জয়েন করুন, তারপর **✅ জয়েন ভেরিফাই করুন** চাপুন।\n\n"
-            f"📞 যেকোনো সমস্যা হলে **জয় (JOY)**-এর সাথে যোগাযোগ করুন: {OWNER_USERNAME}",
+            f"📞 যোগাযোগ: {OWNER_USERNAME}",
             parse_mode="Markdown",
             reply_markup=get_join_verify_keyboard(),
         )
         return
 
-    user_states[user.id] = {
-        "name": user.first_name,
-        "market": None,
-        "last_period": "",
-        "last_pred": None,
-        "auto": True,
-    }
+    state["market"] = None
+    state["last_period"] = ""
+    state["last_pred"] = None
+    state["awaiting_deposit"] = False
     await send_market_prompt(update.message, user.first_name)
 
 
@@ -268,7 +353,7 @@ async def market_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     if not await is_user_joined(user.id, context):
         await update.message.reply_text(
-            f"🔒 **আগে টেলিগ্রাম চ্যানেলে জয়েন করুন!**\n\nসমস্যা হলে **জয় (JOY)**-এর সাথে যোগাযোগ করুন: {OWNER_USERNAME}",
+            f"🔒 **আগে টেলিগ্রাম চ্যানেলে জয়েন করুন!**\n\nযোগাযোগ: {OWNER_USERNAME}",
             parse_mode="Markdown",
             reply_markup=get_join_verify_keyboard(),
         )
@@ -277,15 +362,56 @@ async def market_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     await send_market_prompt(update.message, user.first_name)
 
 
-async def about_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if not update.message:
+async def referral_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user = update.effective_user
+    if not user or not update.message:
         return
 
-    keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("💬 জয় (JOY)-এর সাথে যোগাযোগ করুন", url=OWNER_CONTACT_URL)],
-        [InlineKeyboardButton("🔙 মার্কেট মেনুতে ফিরে যান", callback_data="change_market")],
-    ])
-    await update.message.reply_text(build_joy_about_message(), parse_mode="Markdown", reply_markup=keyboard)
+    msg = await build_referral_message(user.id, user.first_name, context)
+    await update.message.reply_text(msg, parse_mode="Markdown", reply_markup=get_referral_keyboard())
+
+
+async def deposit_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user = update.effective_user
+    if not user or not update.message:
+        return
+
+    msg = build_coin_deposit_message(user.id, user.first_name)
+    await update.message.reply_text(msg, parse_mode="Markdown", reply_markup=get_coin_deposit_keyboard())
+
+
+async def text_message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user = update.effective_user
+    if not user or not update.message or not update.message.text:
+        return
+
+    state = get_or_create_user(user.id, user.first_name)
+    if bool(state.get("awaiting_deposit", False)):
+        raw_text = update.message.text.strip()
+        deposits = state.setdefault("deposits", [])
+        if isinstance(deposits, list):
+            deposits.append({
+                "details": raw_text,
+                "submitted_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"),
+            })
+        state["awaiting_deposit"] = False
+        logger.info(f"Coin deposit submitted by user {user.id} ({user.first_name}): {raw_text}")
+
+        confirm_text = (
+            f"✅ **কয়েন ডিপোজিট তথ্য গ্রহণ করা হয়েছে!** ✅\n"
+            f"▱▱▱▱▱▱▱▱▱▱▱▱▱▱\n"
+            f"👤 *User:* `{user.first_name}` (`ID: {user.id}`)\n"
+            f"🪙 *জমা দেওয়া কয়েন তথ্য:* `{raw_text}`\n\n"
+            f"📞 যোগাযোগ: {OWNER_USERNAME}"
+        )
+        await update.message.reply_text(
+            confirm_text,
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("💬 যোগাযোগ (@BDT588)", url=OWNER_CONTACT_URL)],
+                [InlineKeyboardButton("🔙 মার্কেট মেনুতে ফিরে যান", callback_data="change_market")],
+            ]),
+        )
 
 
 async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -299,13 +425,10 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     if data == "verify_join":
         joined = await is_user_joined(user.id, context)
         if joined:
-            user_states[user.id] = {
-                "name": user.first_name,
-                "market": None,
-                "last_period": "",
-                "last_pred": None,
-                "auto": True,
-            }
+            state = get_or_create_user(user.id, user.first_name)
+            state["market"] = None
+            state["last_period"] = ""
+            state["last_pred"] = None
             await query.answer("ভেরিফাই সফল! স্বাগতম ✅", show_alert=False)
             await send_market_prompt(query.message, user.first_name)
         else:
@@ -313,6 +436,31 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 f"আপনি এখনো চ্যানেলে জয়েন করেননি! আগে জয়েন করুন। সমস্যা হলে {OWNER_USERNAME} এ যোগাযোগ করুন।",
                 show_alert=True,
             )
+        return
+
+    state = get_or_create_user(user.id, user.first_name)
+
+    if data == "open_referral":
+        await query.answer("রেফারেল সিস্টেম")
+        msg = await build_referral_message(user.id, user.first_name, context)
+        await query.message.reply_text(msg, parse_mode="Markdown", reply_markup=get_referral_keyboard())
+        return
+
+    if data == "open_coin_deposit":
+        await query.answer("কয়েনের মাধ্যমে ডিপোজিট")
+        msg = build_coin_deposit_message(user.id, user.first_name)
+        await query.message.reply_text(msg, parse_mode="Markdown", reply_markup=get_coin_deposit_keyboard())
+        return
+
+    if data == "submit_coin_deposit":
+        state["awaiting_deposit"] = True
+        await query.answer("কয়েন ডিপোজিট তথ্য লিখুন")
+        await query.message.reply_text(
+            f"✍️ **আপনি কোন কয়েনে কত পাঠিয়েছেন এবং TxID/Hash লিখে পাঠান:**\n\n"
+            f"উদাহরণ: `20 USDT TRC20 - TxID: 8f92e1a04b`\n\n"
+            f"📞 প্রয়োজনে যোগাযোগ করুন: {OWNER_USERNAME}",
+            parse_mode="Markdown",
+        )
         return
 
     if not await is_user_joined(user.id, context):
@@ -323,12 +471,6 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             reply_markup=get_join_verify_keyboard(),
         )
         return
-
-    state = user_states.setdefault(
-        user.id,
-        {"name": user.first_name, "market": None, "last_period": "", "last_pred": None, "auto": True},
-    )
-    state["name"] = user.first_name
 
     if data == "get_new_signal":
         market_key = state.get("market")
@@ -355,7 +497,6 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             market_key,
             period,
             time_left,
-            bool(state.get("auto", True)),
         )
         state["last_period"] = period
         state["last_pred"] = pred_type
@@ -364,21 +505,14 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await query.message.reply_text(
             text=card,
             parse_mode="Markdown",
-            reply_markup=get_signal_control_keyboard(bool(state.get("auto", True))),
+            reply_markup=get_signal_control_keyboard(),
         )
-
-    elif data == "about_joy":
-        await query.answer("জয় (JOY) সম্পর্কে তথ্য")
-        keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("💬 জয় (JOY)-এর সাথে যোগাযোগ করুন", url=OWNER_CONTACT_URL)],
-            [InlineKeyboardButton("🔙 মার্কেট সিলেক্ট করুন", callback_data="change_market")],
-        ])
-        await query.message.reply_text(text=build_joy_about_message(), parse_mode="Markdown", reply_markup=keyboard)
 
     elif data == "change_market":
         state["market"] = None
         state["last_period"] = ""
         state["last_pred"] = None
+        state["awaiting_deposit"] = False
         await query.answer("মার্কেট সিলেক্ট করুন")
         await send_market_prompt(query.message, user.first_name)
 
@@ -388,97 +522,18 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             return
 
         period, time_left = generate_market_period(market_key)
-        card, pred_type = format_market_signal_card(user.first_name, market_key, period, time_left, True)
+        card, pred_type = format_market_signal_card(user.first_name, market_key, period, time_left)
 
         state["market"] = market_key
         state["last_period"] = period
         state["last_pred"] = pred_type
-        state["auto"] = True
 
         await query.answer(f"{market_key} মার্কেট সিলেক্ট হয়েছে!")
         await query.message.reply_text(
             text=card,
             parse_mode="Markdown",
-            reply_markup=get_signal_control_keyboard(True),
+            reply_markup=get_signal_control_keyboard(),
         )
-
-    elif data == "auto_off":
-        state["auto"] = False
-        await query.answer("অটো সিগন্যাল অফ করা হয়েছে ⏸️")
-        await query.message.reply_text(
-            text="⏸️ আপনার অটো সিগন্যাল সাময়িকভাবে বন্ধ করা হয়েছে। **🔄 নতুন সিগন্যাল নিন** বাটন চাপলে নতুন সিগন্যাল পাবেন।",
-            parse_mode="Markdown",
-            reply_markup=get_signal_control_keyboard(False),
-        )
-
-    elif data == "auto_on":
-        state["auto"] = True
-        await query.answer("অটো সিগন্যাল অন করা হয়েছে ▶️")
-        market_key = state.get("market")
-        if isinstance(market_key, str) and market_key in MARKETS:
-            period, time_left = generate_market_period(market_key)
-            card, pred_type = format_market_signal_card(user.first_name, market_key, period, time_left, True)
-            state["last_period"] = period
-            state["last_pred"] = pred_type
-            await query.message.reply_text(
-                text=card,
-                parse_mode="Markdown",
-                reply_markup=get_signal_control_keyboard(True),
-            )
-
-
-async def auto_market_signal_job(context: ContextTypes.DEFAULT_TYPE) -> None:
-    if not user_states:
-        return
-
-    for user_id, state in list(user_states.items()):
-        market_key = state.get("market")
-        auto_on = bool(state.get("auto", True))
-        if not auto_on or not isinstance(market_key, str) or market_key not in MARKETS:
-            continue
-
-        current_period, time_left = generate_market_period(market_key)
-        prev_period = str(state.get("last_period") or "")
-        prev_pred = state.get("last_pred")
-
-        if prev_period and prev_period != current_period:
-            if not await is_user_joined(user_id, context):
-                state["market"] = None
-                continue
-
-            user_name = str(state.get("name") or "Trader")
-            try:
-                if isinstance(prev_pred, str) and prev_pred in ("BIG", "SMALL"):
-                    result_msg = format_result_announcement(
-                        user_name=user_name,
-                        market_key=market_key,
-                        finished_period=prev_period,
-                        predicted_type=prev_pred,
-                    )
-                    await context.bot.send_message(
-                        chat_id=user_id,
-                        text=result_msg,
-                        parse_mode="Markdown",
-                    )
-
-                new_card, new_pred = format_market_signal_card(
-                    user_name=user_name,
-                    market_key=market_key,
-                    period=current_period,
-                    time_left=time_left,
-                    auto_on=True,
-                )
-                state["last_period"] = current_period
-                state["last_pred"] = new_pred
-
-                await context.bot.send_message(
-                    chat_id=user_id,
-                    text=new_card,
-                    parse_mode="Markdown",
-                    reply_markup=get_signal_control_keyboard(True),
-                )
-            except Exception as e:
-                logger.error(f"Error auto pushing signal to user {user_id}: {e}")
 
 
 def main() -> None:
@@ -486,16 +541,12 @@ def main() -> None:
 
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(CommandHandler("market", market_command))
-    app.add_handler(CommandHandler("about", about_command))
+    app.add_handler(CommandHandler("referral", referral_command))
+    app.add_handler(CommandHandler("deposit", deposit_command))
     app.add_handler(CallbackQueryHandler(callback_handler))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_message_handler))
 
-    if app.job_queue:
-        app.job_queue.run_repeating(auto_market_signal_job, interval=2, first=2)
-        logger.info("JobQueue auto_market_signal_job scheduled.")
-    else:
-        logger.warning("JobQueue is not available. Add python-telegram-bot[job-queue] to requirements.txt.")
-
-    logger.info("OWNER OF JOY — জয় (JOY) VIP Signal Bot started...")
+    logger.info("OWNER OF JOY — জয় (JOY) VIP Signal Bot with Coin Deposit started...")
     app.run_polling(drop_pending_updates=True)
 
 
