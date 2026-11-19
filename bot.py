@@ -22,7 +22,21 @@ CHANNEL_URL = "https://t.me/bdincomesitehgnice"
 OWNER_USERNAME = "@BDT588"
 OWNER_CONTACT_URL = "https://t.me/BDT588"
 
-# কয়েন ডিপোজিট ও রেফারেল কনফিগারেশন (প্রয়োজন অনুযায়ী ওয়ালেট অ্যাড্রেস বদলে নিবি)
+# ইউজার ফ্রি ডিপোজিট রিকোয়েস্ট পাঠালে সরাসরি তোর অ্যাকাউন্টে যাওয়ার জন্য তোর নিউমেরিক Telegram User ID বসা
+OWNER_CHAT_ID: int = 0
+
+FREE_DEPOSIT_REQUEST_TEXT = "আমার 10,000 টোকেন হয়েছে আমাকে ফ্রি ডিপোজিট দিন"
+
+# বট স্টার্ট বা ওপেন করার সাথে সাথেই ওপরে দেখানোর ডেসক্রিপশন
+BOT_TOP_DESCRIPTION = (
+    "👑 **OWNER OF JOY — জয় (JOY)** 👑\n"
+    "✨ *Smart Market Signal, Referral Coin & Coin Deposit System*\n"
+    "📊 Markets: `30S` • `1M` • `3M` • `5M`\n"
+    "🪙 Referral: `100 Coins / Refer` | Free Deposit at `10,000 Coins`\n"
+    "📞 Support & Contact: @BDT588"
+)
+
+# কয়েন ডিপোজিট ও রেফারেল কনফিগারেশন
 MIN_COIN_DEPOSIT = "10 USDT"
 COIN_WALLETS_INFO = (
     "• **USDT (TRC20):** `TYourTRC20WalletAddressHere`\n"
@@ -206,12 +220,6 @@ async def build_referral_message(user_id: int, user_name: str, context: ContextT
     coins = int(state.get("referral_bonus", 0) or 0)
     claimed = int(state.get("free_deposits_claimed", 0) or 0)
 
-    if coins >= FREE_DEPOSIT_TARGET_COINS:
-        progress_line = f"✅ **ফ্রি ডিপোজিট আনলক হয়েছে!** ({coins:,} / {FREE_DEPOSIT_TARGET_COINS:,} কয়েন)"
-    else:
-        needed = FREE_DEPOSIT_TARGET_COINS - coins
-        progress_line = f"⏳ *ফ্রি ডিপোজিটের জন্য আর প্রয়োজন:* **{needed:,} কয়েন** ({coins:,} / {FREE_DEPOSIT_TARGET_COINS:,})"
-
     return (
         f"👥 **রেফারেল সিস্টেম — জয় (JOY)** 👥\n"
         f"▱▱▱▱▱▱▱▱▱▱▱▱▱▱\n"
@@ -221,8 +229,7 @@ async def build_referral_message(user_id: int, user_name: str, context: ContextT
         f"🪙 *বর্তমান কয়েন ব্যালেন্স:* **{coins:,} কয়েন**\n"
         f"✨ *প্রতি ১টি রেফারে পাবেন:* **{REFERRAL_BONUS_PER_USER} কয়েন**\n"
         f"🎁 *ফ্রি ডিপোজিট টার্গেট:* **{FREE_DEPOSIT_TARGET_COINS:,} কয়েন**\n"
-        f"🆓 *নেওয়া ফ্রি ডিপোজিট:* **{claimed}টি**\n"
-        f"{progress_line}\n\n"
+        f"🆓 *নেওয়া ফ্রি ডিপোজিট:* **{claimed}টি**\n\n"
         f"📞 *Contact:* {OWNER_USERNAME}"
     )
 
@@ -245,7 +252,7 @@ def build_coin_deposit_message(user_id: int, user_name: str) -> str:
         f"📝 **ডিপোজিট করার নিয়ম:**\n"
         f"১. সঠিক কয়েন ও সঠিক নেটওয়ার্ক সিলেক্ট করে উপরের ওয়ালেট অ্যাড্রেসে কয়েন পাঠান।\n"
         f"২. নিচের **✍️ কয়েন ডিপোজিট তথ্য জমা দিন** বাটনে চাপ দিয়ে **কয়েনের নাম, অ্যামাউন্ট ও TxID/Hash** লিখে পাঠান (যেমন: `20 USDT TRC20 - TxID: 9a8b7c6d`)।\n"
-        f"৩. অথবা ১টি রেফারে **১০০ কয়েন** করে মোট **{FREE_DEPOSIT_TARGET_COINS:,} কয়েন** হলে **🎁 ফ্রি ডিপোজিট নিন** বাটন থেকে ফ্রি ডিপোজিট নিতে পারবেন।\n"
+        f"৩. ফ্রি ডিপোজিট নিতে চাইলে **🎁 ফ্রি ডিপোজিট নিন (10,000 কয়েন)** বাটনে চাপুন।\n"
         f"📞 যোগাযোগ: {OWNER_USERNAME}"
     )
 
@@ -320,10 +327,9 @@ def get_referral_keyboard() -> InlineKeyboardMarkup:
 
 async def send_market_prompt(message_obj, user_name: str) -> None:
     text = (
-        f"👑 **OWNER OF JOY — জয় (JOY)** 👑\n\n"
-        f"স্বাগতম **{user_name}**! 🌟\n"
-        f"পরিচালনায়: **জয় (JOY)** | যোগাযোগ: {OWNER_USERNAME}\n"
+        f"{BOT_TOP_DESCRIPTION}\n"
         f"▱▱▱▱▱▱▱▱▱▱▱▱▱▱\n"
+        f"স্বাগতম **{user_name}**! 🌟\n"
         f"👇 **আপনি কোন মার্কেটে ট্রেড করতে চান? নিচে থেকে সিলেক্ট করুন:**"
     )
     await message_obj.reply_text(text=text, parse_mode="Markdown", reply_markup=get_market_selection_keyboard())
@@ -349,10 +355,10 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     joined = await is_user_joined(user.id, context)
     if not joined:
         await update.message.reply_text(
-            f"👑 **OWNER OF JOY — জয় (JOY)** 👑\n\n"
+            f"{BOT_TOP_DESCRIPTION}\n"
+            f"▱▱▱▱▱▱▱▱▱▱▱▱▱▱\n"
             f"🔒 **সিগন্যাল পেতে হলে আগে আমাদের টেলিগ্রাম চ্যানেলে জয়েন করতে হবে!**\n\n"
-            f"নিচের বাটনে ক্লিক করে চ্যানেলে জয়েন করুন, তারপর **✅ জয়েন ভেরিফাই করুন** চাপুন।\n\n"
-            f"📞 যোগাযোগ: {OWNER_USERNAME}",
+            f"নিচের বাটনে ক্লিক করে চ্যানেলে জয়েন করুন, তারপর **✅ জয়েন ভেরিফাই করুন** চাপুন।",
             parse_mode="Markdown",
             reply_markup=get_join_verify_keyboard(),
         )
@@ -372,7 +378,9 @@ async def market_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     if not await is_user_joined(user.id, context):
         await update.message.reply_text(
-            f"🔒 **আগে টেলিগ্রাম চ্যানেলে জয়েন করুন!**\n\nযোগাযোগ: {OWNER_USERNAME}",
+            f"{BOT_TOP_DESCRIPTION}\n"
+            f"▱▱▱▱▱▱▱▱▱▱▱▱▱▱\n"
+            f"🔒 **আগে টেলিগ্রাম চ্যানেলে জয়েন করুন!**",
             parse_mode="Markdown",
             reply_markup=get_join_verify_keyboard(),
         )
@@ -404,9 +412,39 @@ async def text_message_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     if not user or not update.message or not update.message.text:
         return
 
+    raw_text = update.message.text.strip()
     state = get_or_create_user(user.id, user.first_name)
+
+    if raw_text == FREE_DEPOSIT_REQUEST_TEXT:
+        claimed = int(state.get("free_deposits_claimed", 0) or 0) + 1
+        state["free_deposits_claimed"] = claimed
+        logger.info(f"Free deposit text sent by user {user.id} ({user.first_name})")
+
+        if OWNER_CHAT_ID:
+            try:
+                owner_alert = (
+                    f"🎁 **ফ্রি ডিপোজিট রিকোয়েস্ট এসেছে!** 🎁\n"
+                    f"👤 *User:* `{user.first_name}` (`ID: {user.id}`)\n"
+                    f"💬 *মেসেজ:* `{raw_text}`\n"
+                    f"📌 *এই মেসেজের রিপ্লাই দিয়ে ফ্রি ডিপোজিট দিন।*"
+                )
+                await context.bot.send_message(
+                    chat_id=OWNER_CHAT_ID,
+                    text=owner_alert,
+                    parse_mode="Markdown",
+                )
+            except Exception as e:
+                logger.error(f"Failed to forward free deposit request to owner: {e}")
+
+        await update.message.reply_text(
+            f"✅ আপনার রিকোয়েস্ট পাঠানো হয়েছে!\n"
+            f"খুব শীঘ্রই **জয় (JOY)** আপনার মেসেজের রিপ্লাই দিয়ে ফ্রি ডিপোজিট দিয়ে দেবেন।\n"
+            f"📞 যোগাযোগ: {OWNER_USERNAME}",
+            parse_mode="Markdown",
+        )
+        return
+
     if bool(state.get("awaiting_deposit", False)):
-        raw_text = update.message.text.strip()
         deposits = state.setdefault("deposits", [])
         if isinstance(deposits, list):
             deposits.append({
@@ -483,34 +521,11 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         return
 
     if data == "claim_free_deposit":
-        coins = int(state.get("referral_bonus", 0) or 0)
-        if coins < FREE_DEPOSIT_TARGET_COINS:
-            needed = FREE_DEPOSIT_TARGET_COINS - coins
-            await query.answer(
-                f"ফ্রি ডিপোজিটের জন্য {FREE_DEPOSIT_TARGET_COINS:,} কয়েন লাগবে! আপনার আছে {coins:,} কয়েন (আরও {needed:,} কয়েন লাগবে)।",
-                show_alert=True,
-            )
-            return
-
-        state["referral_bonus"] = coins - FREE_DEPOSIT_TARGET_COINS
-        claimed = int(state.get("free_deposits_claimed", 0) or 0) + 1
-        state["free_deposits_claimed"] = claimed
-        logger.info(f"Free deposit claimed by user {user.id} ({user.first_name}) | Claim #{claimed}")
-
-        await query.answer("ফ্রি ডিপোজিট রিকোয়েস্ট সফল হয়েছে! 🎉", show_alert=False)
+        await query.answer("নিচের লেখাটি সেন্ড করুন!", show_alert=False)
         await query.message.reply_text(
-            f"🎁 **CONGRATULATIONS! ফ্রি ডিপোজিট আনলক হয়েছে!** 🎉\n"
-            f"▱▱▱▱▱▱▱▱▱▱▱▱▱▱\n"
-            f"👤 *User:* `{user.first_name}` (`ID: {user.id}`)\n"
-            f"🪙 *ব্যবহৃত কয়েন:* **{FREE_DEPOSIT_TARGET_COINS:,} কয়েন**\n"
-            f"💰 *অবশিষ্ট কয়েন:* **{int(state.get('referral_bonus', 0)):,} কয়েন**\n"
-            f"🆓 *মোট ফ্রি ডিপোজিট ক্লেইম:* **{claimed}টি**\n\n"
-            f"📌 আপনার ফ্রি ডিপোজিট রিকোয়েস্ট রেকর্ড করা হয়েছে। বিস্তারিত ও কনফার্মেশনের জন্য যোগাযোগ করুন: {OWNER_USERNAME}",
+            f"`{FREE_DEPOSIT_REQUEST_TEXT}`\n\n"
+            f"👆 এই লেখাটি কপি করে সেন্ড করুন, সাথে সাথে **জয় (JOY)**-এর কাছে চলে যাবে এবং রিপ্লাই দিয়ে ফ্রি ডিপোজিট পাবেন।",
             parse_mode="Markdown",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("💬 যোগাযোগ (@BDT588)", url=OWNER_CONTACT_URL)],
-                [InlineKeyboardButton("🔙 মার্কেট মেনুতে ফিরে যান", callback_data="change_market")],
-            ]),
         )
         return
 
@@ -534,7 +549,6 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         prev_period = str(state.get("last_period") or "")
         prev_pred = state.get("last_pred")
 
-        # বর্তমান 1000 পিরিয়ডের সেকেন্ড শেষ না হওয়া পর্যন্ত নতুন সিগন্যাল নিতে পারবে না
         if prev_period and prev_period == current_period:
             await query.answer(
                 f"পিরিয়ড {current_period} এখনো চলছে! নতুন সিগন্যালের জন্য আর {time_left}s অপেক্ষা করুন।",
@@ -542,8 +556,6 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             )
             return
 
-        # আগের পিরিয়ডের সেকেন্ড শেষ হয়ে নতুন পিরিয়ড শুরু হয়েছে:
-        # ১) আগে আগের পিরিয়ডের রেজাল্ট পাঠাবে
         if prev_period and prev_period != current_period and isinstance(prev_pred, str) and prev_pred in ("BIG", "SMALL"):
             result_msg = format_result_announcement(
                 user_name=user.first_name,
@@ -553,11 +565,10 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             )
             await query.message.reply_text(text=result_msg, parse_mode="Markdown")
 
-        # ২) তারপর নতুন পিরিয়ডের নতুন সিগন্যাল কার্ড পাঠাবে
         card, pred_type = format_market_signal_card(
             user_name=user.first_name,
             market_key=market_key,
-            current_period=current_period,
+            period=current_period,
             time_left=time_left,
         )
         state["last_period"] = current_period
