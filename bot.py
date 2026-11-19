@@ -48,9 +48,6 @@ def generate_market_period(market_key: str) -> tuple[str, int]:
 
 
 def evaluate_actual_outcome(full_period: str) -> tuple[str, int]:
-    """
-    HTML কোডের লজিক অনুযায়ী পিরিয়ডের আউটকাম (BIG/SMALL এবং ০-৯ নাম্বার) বের করে।
-    """
     actual_seed = int(full_period[-5:]) if full_period[-5:].isdigit() else 54321
     actual_num = (actual_seed * 13 + 7) % 10
     actual_size = "BIG" if actual_num >= 5 else "SMALL"
@@ -221,7 +218,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         await update.message.reply_text(
             f"👑 **OWNER OF JOY — VIP ACCESS** 👑\n\n"
             f"🔒 **সিগন্যাল পেতে হলে আগে আমাদের টেলিগ্রাম চ্যানেলে জয়েন করতে হবে!**\n\n"
-            f"নিচের বাটনে ক্লিক করে চ্যানেলে জয়েন করুন, তারপর **✅ জয়েন ভেরিফাই করুন** চাপুন।\n\n"
+            f"নিচের বাটনে ক্লিক করে চ্যানেলে জয়েন করুন, তারপর **✅ জয়েন ভেরিফাই করুন** চাপুন。\n\n"
             f"📞 যেকোনো সমস্যা হলে যোগাযোগ করুন: {OWNER_USERNAME}",
             parse_mode="Markdown",
             reply_markup=get_join_verify_keyboard(),
@@ -391,9 +388,8 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
 async def auto_market_signal_job(context: ContextTypes.DEFAULT_TYPE) -> None:
     """
-    নতুন পিরিয়ড শুরু হলে আগের মেসেজ ডিলিট না করে:
-    ১) আগে আগের পিরিয়ডের রেজাল্ট (WIN / CONGRATULATIONS বা LOSS) পাঠায়,
-    ২) তারপর নতুন পিরিয়ডের নতুন সিগন্যাল পাঠায়।
+    প্রতি ২ সেকেন্ডে চেক করে বর্তমান পিরিয়ড এবং আগের পিরিয়ড আলাদা কি না।
+    ভিন্ন হওয়া মাত্রই আগেরটার রেজাল্ট এবং নতুন পিরিয়ডের সিগন্যাল পাঠিয়ে দেয়।
     """
     if not user_states:
         return
@@ -408,13 +404,23 @@ async def auto_market_signal_job(context: ContextTypes.DEFAULT_TYPE) -> None:
         prev_period = str(state.get("last_period") or "")
         prev_pred = state.get("last_pred")
 
-        if prev_period and prev_period != current_period:
+        # যদি এখনো last_period সেট না থাকে, তবে বর্তমান পিরিয়ড সেট করে নেব
+        if not prev_period:
+            state["last_period"] = current_period
+            _, _, _, lucky_num = generate_signal_for_market(market_key, current_period)
+            # প্রাথমিক প্রেডিকশন টাইপ বের করা
+            _, act_text, _, _ = generate_signal_for_market(market_key, current_period)
+            state["last_pred"] = "BIG" if "BIG" in act_text else "SMALL"
+            continue
+
+        if prev_period != current_period:
             if not await is_user_joined(user_id, context):
                 state["market"] = None
                 continue
 
             user_name = str(state.get("name") or "Trader")
             try:
+                # ১) আগের পিরিয়ডের রেজাল্ট বা কনগ্রাচুলেশনস মেসেজ পাঠানো
                 if isinstance(prev_pred, str) and prev_pred in ("BIG", "SMALL"):
                     result_msg = format_result_announcement(
                         user_name=user_name,
@@ -428,6 +434,7 @@ async def auto_market_signal_job(context: ContextTypes.DEFAULT_TYPE) -> None:
                         parse_mode="Markdown",
                     )
 
+                # ২) নতুন পিরিয়ডের সিগন্যাল কার্ড তৈরি ও পাঠানো
                 new_card, new_pred = format_market_signal_card(
                     user_name=user_name,
                     market_key=market_key,
@@ -435,6 +442,8 @@ async def auto_market_signal_job(context: ContextTypes.DEFAULT_TYPE) -> None:
                     time_left=time_left,
                     auto_on=True,
                 )
+                
+                # স্টেট আপডেট করা যাতে পরের রাউন্ডে আবার ঠিকভাবে কাজ করে
                 state["last_period"] = current_period
                 state["last_pred"] = new_pred
 
@@ -461,7 +470,7 @@ def main() -> None:
     else:
         logger.warning("JobQueue is not available. Add python-telegram-bot[job-queue] to requirements.txt.")
 
-    logger.info("Owner of JOY VIP Signal Bot with Result & Auto Next Signal started...")
+    logger.info("Owner of JOY VIP Signal Bot with Real-time Auto Market Rotation started...")
     app.run_polling(drop_pending_updates=True)
 
 
