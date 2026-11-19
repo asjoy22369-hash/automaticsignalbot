@@ -64,6 +64,8 @@ MARKETS: dict[str, tuple[str, int, int]] = {
 }
 
 # নিচের কীবোর্ড বাটন লেবেলসমূহ
+BTN_MENU_OPEN = "☰ মেনু"
+BTN_MENU_CLOSE = "✕ মেনু বন্ধ"
 BTN_30S = "⚡ 30S"
 BTN_1M = "⏱️ 1M"
 BTN_3M = "🕒 3M"
@@ -96,12 +98,14 @@ def get_or_create_user(user_id: int, user_name: str, referred_by: int | None = N
             "awaiting_deposit": False,
             "current_view": "market_menu",
             "nav_stack": [],
+            "menu_expanded": False,
         }
         user_states[user_id] = state
     else:
         state["name"] = user_name
         state.setdefault("nav_stack", [])
         state.setdefault("current_view", "market_menu")
+        state.setdefault("menu_expanded", False)
         if referred_by is not None and state.get("referred_by") is None and referred_by != user_id:
             state["referred_by"] = referred_by
     return state
@@ -295,7 +299,7 @@ def build_coin_deposit_message(user_id: int, user_name: str) -> str:
         f"{COIN_WALLETS_INFO}\n\n"
         f"📝 **ডিপোজিট করার নিয়ম:**\n"
         f"১. সঠিক কয়েন ও সঠিক নেটওয়ার্ক সিলেক্ট করে উপরের ওয়ালেট অ্যাড্রেসে কয়েন পাঠান।\n"
-        f"২. নিচের কীবোর্ড থেকে **{BTN_SUBMIT_DEPOSIT}** চাপ দিয়ে **কয়েনের নাম, অ্যামাউন্ট ও TxID/Hash** লিখে পাঠান।\n"
+        f"২. নিচের মেনু থেকে **{BTN_SUBMIT_DEPOSIT}** চাপ দিয়ে **কয়েনের নাম, অ্যামাউন্ট ও TxID/Hash** লিখে পাঠান।\n"
         f"৩. ফ্রি ডিপোজিট নিতে চাইলে **{BTN_FREE_DEPOSIT}** চাপুন।\n"
         f"📞 যোগাযোগ: {OWNER_USERNAME}"
     )
@@ -319,10 +323,28 @@ def get_join_verify_keyboard() -> InlineKeyboardMarkup:
     ])
 
 
-def get_bottom_menu_keyboard(view_name: str, show_step_back: bool = False) -> ReplyKeyboardMarkup:
+def get_bottom_menu_keyboard(state: dict[str, object]) -> ReplyKeyboardMarkup:
+    view_name = str(state.get("current_view") or "market_menu")
+    menu_expanded = bool(state.get("menu_expanded", False))
+    stack = state.get("nav_stack", [])
+    has_prev = isinstance(stack, list) and len(stack) > 0
+
+    if not menu_expanded:
+        top_row = [KeyboardButton(BTN_NEW_SIGNAL), KeyboardButton(BTN_MENU_OPEN)] if view_name == "signal_view" else [KeyboardButton(BTN_MENU_OPEN)]
+        rows = [top_row]
+        if has_prev:
+            rows.append([KeyboardButton(BTN_BACK)])
+        return ReplyKeyboardMarkup(
+            rows,
+            resize_keyboard=True,
+            is_persistent=True,
+            input_field_placeholder="☰ মেনু বাটনে ক্লিক করে অপশন চালু করুন...",
+        )
+
     if view_name == "signal_view":
         rows = [
             [KeyboardButton(BTN_NEW_SIGNAL)],
+            [KeyboardButton(BTN_30S), KeyboardButton(BTN_1M), KeyboardButton(BTN_3M), KeyboardButton(BTN_5M)],
             [KeyboardButton(BTN_CHANGE_MARKET), KeyboardButton(BTN_REFERRAL)],
             [KeyboardButton(BTN_COIN_DEPOSIT)],
         ]
@@ -331,6 +353,7 @@ def get_bottom_menu_keyboard(view_name: str, show_step_back: bool = False) -> Re
             [KeyboardButton(BTN_SUBMIT_DEPOSIT)],
             [KeyboardButton(BTN_FREE_DEPOSIT)],
             [KeyboardButton(BTN_REFERRAL), KeyboardButton(BTN_COIN_DEPOSIT)],
+            [KeyboardButton(BTN_30S), KeyboardButton(BTN_1M), KeyboardButton(BTN_3M), KeyboardButton(BTN_5M)],
         ]
     else:
         rows = [
@@ -338,30 +361,30 @@ def get_bottom_menu_keyboard(view_name: str, show_step_back: bool = False) -> Re
             [KeyboardButton(BTN_COIN_DEPOSIT), KeyboardButton(BTN_REFERRAL)],
         ]
 
-    if show_step_back:
-        rows.append([KeyboardButton(BTN_BACK)])
+    control_row = [KeyboardButton(BTN_MENU_CLOSE)]
+    if has_prev:
+        control_row.append(KeyboardButton(BTN_BACK))
+    rows.append(control_row)
 
     return ReplyKeyboardMarkup(
         rows,
         resize_keyboard=True,
         is_persistent=True,
-        input_field_placeholder="নিচের মেনু থেকে অপশন সিলেক্ট করুন...",
+        input_field_placeholder="অপশন সিলেক্ট করুন অথবা ✕ মেনু বন্ধ চাপুন...",
     )
 
 
 async def send_market_prompt(message_obj, user_name: str, state: dict[str, object]) -> None:
-    stack = state.get("nav_stack", [])
-    has_prev = isinstance(stack, list) and len(stack) > 0
     text = (
         f"{BOT_TOP_DESCRIPTION}\n"
         f"▱▱▱▱▱▱▱▱▱▱▱▱▱▱\n"
         f"স্বাগতম **{user_name}**! 🌟\n"
-        f"👇 **নিচের বাটন থেকে মার্কেট বা অপশন সিলেক্ট করুন:**"
+        f"👇 **অপশন চালু করতে নিচের `{BTN_MENU_OPEN}` বাটনে ক্লিক করুন:**"
     )
     await message_obj.reply_text(
         text=text,
         parse_mode="Markdown",
-        reply_markup=get_bottom_menu_keyboard("market_menu", show_step_back=has_prev),
+        reply_markup=get_bottom_menu_keyboard(state),
     )
 
 
@@ -373,15 +396,12 @@ async def render_view(
     state: dict[str, object],
     context: ContextTypes.DEFAULT_TYPE,
 ) -> None:
-    stack = state.get("nav_stack", [])
-    has_prev = isinstance(stack, list) and len(stack) > 0
-
     if view_name == "referral_view":
         msg = await build_referral_message(user_id, user_name, context)
         await message_obj.reply_text(
             msg,
             parse_mode="Markdown",
-            reply_markup=get_bottom_menu_keyboard("referral_view", show_step_back=has_prev),
+            reply_markup=get_bottom_menu_keyboard(state),
         )
         return
 
@@ -390,7 +410,7 @@ async def render_view(
         await message_obj.reply_text(
             msg,
             parse_mode="Markdown",
-            reply_markup=get_bottom_menu_keyboard("deposit_view", show_step_back=has_prev),
+            reply_markup=get_bottom_menu_keyboard(state),
         )
         return
 
@@ -401,7 +421,7 @@ async def render_view(
             f"উদাহরণ: `20 USDT TRC20 - TxID: 8f92e1a04b`\n\n"
             f"📞 প্রয়োজনে যোগাযোগ করুন: {OWNER_USERNAME}",
             parse_mode="Markdown",
-            reply_markup=get_bottom_menu_keyboard("submit_deposit_view", show_step_back=has_prev),
+            reply_markup=get_bottom_menu_keyboard(state),
         )
         return
 
@@ -410,7 +430,7 @@ async def render_view(
             f"`{FREE_DEPOSIT_REQUEST_TEXT}`\n\n"
             f"👆 এই লেখাটি কপি করে সেন্ড করুন, সাথে সাথে **জয় (JOY)**-এর কাছে চলে যাবে এবং রিপ্লাই দিয়ে ফ্রি ডিপোজিট পাবেন।",
             parse_mode="Markdown",
-            reply_markup=get_bottom_menu_keyboard("free_deposit_view", show_step_back=has_prev),
+            reply_markup=get_bottom_menu_keyboard(state),
         )
         return
 
@@ -424,7 +444,7 @@ async def render_view(
             await message_obj.reply_text(
                 text=card,
                 parse_mode="Markdown",
-                reply_markup=get_bottom_menu_keyboard("signal_view", show_step_back=has_prev),
+                reply_markup=get_bottom_menu_keyboard(state),
             )
             return
 
@@ -444,14 +464,13 @@ async def open_selected_market(
     state["market"] = market_key
     state["last_period"] = period
     state["last_pred"] = pred_type
+    state["menu_expanded"] = False
     push_navigation_view(state, "signal_view")
 
-    stack = state.get("nav_stack", [])
-    has_prev = isinstance(stack, list) and len(stack) > 0
     await message_obj.reply_text(
         text=card,
         parse_mode="Markdown",
-        reply_markup=get_bottom_menu_keyboard("signal_view", show_step_back=has_prev),
+        reply_markup=get_bottom_menu_keyboard(state),
     )
 
 
@@ -490,6 +509,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     state["awaiting_deposit"] = False
     state["current_view"] = "market_menu"
     state["nav_stack"] = []
+    state["menu_expanded"] = False
     await send_market_prompt(update.message, user.first_name, state)
 
 
@@ -509,6 +529,7 @@ async def market_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return
 
     state = get_or_create_user(user.id, user.first_name)
+    state["menu_expanded"] = True
     push_navigation_view(state, "market_menu")
     await send_market_prompt(update.message, user.first_name, state)
 
@@ -521,12 +542,10 @@ async def referral_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     state = get_or_create_user(user.id, user.first_name)
     push_navigation_view(state, "referral_view")
     msg = await build_referral_message(user.id, user.first_name, context)
-    stack = state.get("nav_stack", [])
-    has_prev = isinstance(stack, list) and len(stack) > 0
     await update.message.reply_text(
         msg,
         parse_mode="Markdown",
-        reply_markup=get_bottom_menu_keyboard("referral_view", show_step_back=has_prev),
+        reply_markup=get_bottom_menu_keyboard(state),
     )
 
 
@@ -538,12 +557,10 @@ async def deposit_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     state = get_or_create_user(user.id, user.first_name)
     push_navigation_view(state, "deposit_view")
     msg = build_coin_deposit_message(user.id, user.first_name)
-    stack = state.get("nav_stack", [])
-    has_prev = isinstance(stack, list) and len(stack) > 0
     await update.message.reply_text(
         msg,
         parse_mode="Markdown",
-        reply_markup=get_bottom_menu_keyboard("deposit_view", show_step_back=has_prev),
+        reply_markup=get_bottom_menu_keyboard(state),
     )
 
 
@@ -554,8 +571,6 @@ async def text_message_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 
     raw_text = update.message.text.strip()
     state = get_or_create_user(user.id, user.first_name)
-    stack = state.get("nav_stack", [])
-    has_prev = isinstance(stack, list) and len(stack) > 0
 
     if raw_text == FREE_DEPOSIT_REQUEST_TEXT:
         claimed = int(state.get("free_deposits_claimed", 0) or 0) + 1
@@ -583,11 +598,13 @@ async def text_message_handler(update: Update, context: ContextTypes.DEFAULT_TYP
             f"খুব শীঘ্রই **জয় (JOY)** আপনার মেসেজের রিপ্লাই দিয়ে ফ্রি ডিপোজিট দিয়ে দেবেন।\n"
             f"📞 যোগাযোগ: {OWNER_USERNAME}",
             parse_mode="Markdown",
-            reply_markup=get_bottom_menu_keyboard("free_deposit_view", show_step_back=has_prev),
+            reply_markup=get_bottom_menu_keyboard(state),
         )
         return
 
     if bool(state.get("awaiting_deposit", False)) and raw_text not in {
+        BTN_MENU_OPEN,
+        BTN_MENU_CLOSE,
         BTN_BACK,
         BTN_CHANGE_MARKET,
         BTN_REFERRAL,
@@ -618,7 +635,25 @@ async def text_message_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         await update.message.reply_text(
             confirm_text,
             parse_mode="Markdown",
-            reply_markup=get_bottom_menu_keyboard("deposit_view", show_step_back=has_prev),
+            reply_markup=get_bottom_menu_keyboard(state),
+        )
+        return
+
+    if raw_text == BTN_MENU_OPEN:
+        state["menu_expanded"] = True
+        await update.message.reply_text(
+            "☰ **মেনু চালু হয়েছে!** নিচে থেকে আপনার প্রয়োজনীয় অপশন সিলেক্ট করুন:",
+            parse_mode="Markdown",
+            reply_markup=get_bottom_menu_keyboard(state),
+        )
+        return
+
+    if raw_text == BTN_MENU_CLOSE:
+        state["menu_expanded"] = False
+        await update.message.reply_text(
+            "✕ **মেনু গুটিয়ে নেওয়া হয়েছে।** আবার অপশন চাইলে `{BTN_MENU_OPEN}` চাপুন।".format(BTN_MENU_OPEN=BTN_MENU_OPEN),
+            parse_mode="Markdown",
+            reply_markup=get_bottom_menu_keyboard(state),
         )
         return
 
@@ -629,60 +664,48 @@ async def text_message_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         return
 
     if raw_text == BTN_REFERRAL:
+        state["menu_expanded"] = False
         push_navigation_view(state, "referral_view")
         msg = await build_referral_message(user.id, user.first_name, context)
-        updated_stack = state.get("nav_stack", [])
         await update.message.reply_text(
             msg,
             parse_mode="Markdown",
-            reply_markup=get_bottom_menu_keyboard(
-                "referral_view",
-                show_step_back=isinstance(updated_stack, list) and len(updated_stack) > 0,
-            ),
+            reply_markup=get_bottom_menu_keyboard(state),
         )
         return
 
     if raw_text == BTN_COIN_DEPOSIT:
+        state["menu_expanded"] = False
         push_navigation_view(state, "deposit_view")
         msg = build_coin_deposit_message(user.id, user.first_name)
-        updated_stack = state.get("nav_stack", [])
         await update.message.reply_text(
             msg,
             parse_mode="Markdown",
-            reply_markup=get_bottom_menu_keyboard(
-                "deposit_view",
-                show_step_back=isinstance(updated_stack, list) and len(updated_stack) > 0,
-            ),
+            reply_markup=get_bottom_menu_keyboard(state),
         )
         return
 
     if raw_text == BTN_SUBMIT_DEPOSIT:
+        state["menu_expanded"] = False
         push_navigation_view(state, "submit_deposit_view")
         state["awaiting_deposit"] = True
-        updated_stack = state.get("nav_stack", [])
         await update.message.reply_text(
             f"✍️ **আপনি কোন কয়েনে কত পাঠিয়েছেন এবং TxID/Hash লিখে পাঠান:**\n\n"
             f"উদাহরণ: `20 USDT TRC20 - TxID: 8f92e1a04b`\n\n"
             f"📞 প্রয়োজনে যোগাযোগ করুন: {OWNER_USERNAME}",
             parse_mode="Markdown",
-            reply_markup=get_bottom_menu_keyboard(
-                "submit_deposit_view",
-                show_step_back=isinstance(updated_stack, list) and len(updated_stack) > 0,
-            ),
+            reply_markup=get_bottom_menu_keyboard(state),
         )
         return
 
     if raw_text == BTN_FREE_DEPOSIT:
+        state["menu_expanded"] = False
         push_navigation_view(state, "free_deposit_view")
-        updated_stack = state.get("nav_stack", [])
         await update.message.reply_text(
             f"`{FREE_DEPOSIT_REQUEST_TEXT}`\n\n"
             f"👆 এই লেখাটি কপি করে সেন্ড করুন, সাথে সাথে **জয় (JOY)**-এর কাছে চলে যাবে এবং রিপ্লাই দিয়ে ফ্রি ডিপোজিট পাবেন।",
             parse_mode="Markdown",
-            reply_markup=get_bottom_menu_keyboard(
-                "free_deposit_view",
-                show_step_back=isinstance(updated_stack, list) and len(updated_stack) > 0,
-            ),
+            reply_markup=get_bottom_menu_keyboard(state),
         )
         return
 
@@ -709,6 +732,7 @@ async def text_message_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         state["last_period"] = ""
         state["last_pred"] = None
         state["awaiting_deposit"] = False
+        state["menu_expanded"] = True
         push_navigation_view(state, "market_menu")
         await send_market_prompt(update.message, user.first_name, state)
         return
@@ -716,6 +740,7 @@ async def text_message_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     if raw_text == BTN_NEW_SIGNAL:
         market_key = state.get("market")
         if not isinstance(market_key, str) or market_key not in MARKETS:
+            state["menu_expanded"] = True
             push_navigation_view(state, "market_menu")
             await send_market_prompt(update.message, user.first_name, state)
             return
@@ -728,7 +753,7 @@ async def text_message_handler(update: Update, context: ContextTypes.DEFAULT_TYP
             await update.message.reply_text(
                 f"⏳ পিরিয়ড `{current_period}` এখনো চলছে! নতুন সিগন্যালের জন্য আর **{time_left}s** অপেক্ষা করুন।",
                 parse_mode="Markdown",
-                reply_markup=get_bottom_menu_keyboard("signal_view", show_step_back=has_prev),
+                reply_markup=get_bottom_menu_keyboard(state),
             )
             return
 
@@ -754,7 +779,7 @@ async def text_message_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         await update.message.reply_text(
             text=card,
             parse_mode="Markdown",
-            reply_markup=get_bottom_menu_keyboard("signal_view", show_step_back=has_prev),
+            reply_markup=get_bottom_menu_keyboard(state),
         )
 
 
@@ -775,6 +800,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             state["last_pred"] = None
             state["current_view"] = "market_menu"
             state["nav_stack"] = []
+            state["menu_expanded"] = False
             await query.answer("ভেরিফাই সফল! স্বাগতম ✅", show_alert=False)
             await send_market_prompt(query.message, user.first_name, state)
         else:
