@@ -651,7 +651,7 @@ async def text_message_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     if raw_text == BTN_MENU_CLOSE:
         state["menu_expanded"] = False
         await update.message.reply_text(
-            "✕ **মেনু গুটিয়ে নেওয়া হয়েছে।** আবার অপশন চাইলে `{BTN_MENU_OPEN}` চাপুন।".format(BTN_MENU_OPEN=BTN_MENU_OPEN),
+            f"✕ **মেনু গুটিয়ে নেওয়া হয়েছে।** আবার অপশন চাইলে `{BTN_MENU_OPEN}` চাপুন।",
             parse_mode="Markdown",
             reply_markup=get_bottom_menu_keyboard(state),
         )
