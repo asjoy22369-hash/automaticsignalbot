@@ -22,14 +22,15 @@ CHANNEL_URL = "https://t.me/bdincomesitehgnice"
 OWNER_USERNAME = "@BDT588"
 OWNER_CONTACT_URL = "https://t.me/BDT588"
 
-# কয়েন ডিপোজিট ও রেফারেল কনফিগারেশন (প্রয়োজন অনুযায়ী অ্যাড্রেস ও মান বদলে নিবি)
+# কয়েন ডিপোজিট ও রেফারেল কনফিগারেশন
 MIN_COIN_DEPOSIT = "10 USDT"
 COIN_WALLETS_INFO = (
     "• **USDT (TRC20):** `TYourTRC20WalletAddressHere`\n"
     "• **USDT (BEP20):** `0xYourBEP20WalletAddressHere`\n"
     "• **TRX (TRON):** `TYourTRXWalletAddressHere`"
 )
-REFERRAL_BONUS_PER_USER = 50
+REFERRAL_BONUS_PER_USER = 100
+FREE_DEPOSIT_TARGET_COINS = 10000
 
 # মার্কেট কনফিগারেশন: key -> (display_label, duration_seconds, base_offset)
 MARKETS: dict[str, tuple[str, int, int]] = {
@@ -54,6 +55,7 @@ def get_or_create_user(user_id: int, user_name: str, referred_by: int | None = N
             "referred_by": referred_by,
             "referrals": [],
             "referral_bonus": 0,
+            "free_deposits_claimed": 0,
             "deposits": [],
             "awaiting_deposit": False,
         }
@@ -77,7 +79,9 @@ def apply_referral_credit(referrer_id: int | None, new_user_id: int) -> None:
         refs.append(new_user_id)
         current_bonus = int(referrer_state.get("referral_bonus", 0) or 0)
         referrer_state["referral_bonus"] = current_bonus + REFERRAL_BONUS_PER_USER
-        logger.info(f"Referral credited: referrer={referrer_id}, new_user={new_user_id}")
+        logger.info(
+            f"Referral credited (+{REFERRAL_BONUS_PER_USER} coins): referrer={referrer_id}, new_user={new_user_id}"
+        )
 
 
 def generate_market_period(market_key: str) -> tuple[str, int]:
@@ -199,7 +203,14 @@ async def build_referral_message(user_id: int, user_name: str, context: ContextT
     state = get_or_create_user(user_id, user_name)
     refs = state.get("referrals", [])
     ref_count = len(refs) if isinstance(refs, list) else 0
-    bonus = int(state.get("referral_bonus", 0) or 0)
+    coins = int(state.get("referral_bonus", 0) or 0)
+    claimed = int(state.get("free_deposits_claimed", 0) or 0)
+
+    if coins >= FREE_DEPOSIT_TARGET_COINS:
+        progress_line = f"✅ **ফ্রি ডিপোজিট আনলক হয়েছে!** ({coins:,} / {FREE_DEPOSIT_TARGET_COINS:,} কয়েন)"
+    else:
+        needed = FREE_DEPOSIT_TARGET_COINS - coins
+        progress_line = f"⏳ *ফ্রি ডিপোজিটের জন্য আর প্রয়োজন:* **{needed:,} কয়েন** ({coins:,} / {FREE_DEPOSIT_TARGET_COINS:,})"
 
     return (
         f"👥 **রেফারেল সিস্টেম — জয় (JOY)** 👥\n"
@@ -207,8 +218,11 @@ async def build_referral_message(user_id: int, user_name: str, context: ContextT
         f"👤 *Member:* `{user_name}`\n"
         f"🔗 *আপনার রেফারেল লিংক:*\n`{ref_link}`\n\n"
         f"📊 *মোট রেফারেল:* **{ref_count} জন**\n"
-        f"🎁 *মোট রেফার বোনাস:* **{bonus} Coin / Credit**\n"
-        f"✨ *প্রতি সফল রেফারে বোনাস:* **{REFERRAL_BONUS_PER_USER} Coin / Credit**\n\n"
+        f"🪙 *বর্তমান কয়েন ব্যালেন্স:* **{coins:,} কয়েন**\n"
+        f"✨ *প্রতি ১টি রেফারে পাবেন:* **{REFERRAL_BONUS_PER_USER} কয়েন**\n"
+        f"🎁 *ফ্রি ডিপোজিট টার্গেট:* **{FREE_DEPOSIT_TARGET_COINS:,} কয়েন**\n"
+        f"🆓 *নেওয়া ফ্রি ডিপোজিট:* **{claimed}টি**\n"
+        f"{progress_line}\n\n"
         f"📞 *Contact:* {OWNER_USERNAME}"
     )
 
@@ -217,19 +231,22 @@ def build_coin_deposit_message(user_id: int, user_name: str) -> str:
     state = get_or_create_user(user_id, user_name)
     deposits = state.get("deposits", [])
     dep_count = len(deposits) if isinstance(deposits, list) else 0
+    coins = int(state.get("referral_bonus", 0) or 0)
 
     return (
         f"🪙 **কয়েনের মাধ্যমে ডিপোজিট করুন — জয় (JOY)** 🪙\n"
         f"▱▱▱▱▱▱▱▱▱▱▱▱▱▱\n"
         f"👤 *User:* `{user_name}` (`ID: {user_id}`)\n"
         f"💰 *সর্বনিম্ন কয়েন ডিপোজিট:* **{MIN_COIN_DEPOSIT}**\n"
+        f"🪙 *আপনার রেফারেল কয়েন:* **{coins:,} / {FREE_DEPOSIT_TARGET_COINS:,} কয়েন**\n"
         f"🧾 *জমা দেওয়া কয়েন ডিপোজিট রিকোয়েস্ট:* **{dep_count}টি**\n\n"
         f"🌐 **কয়েন ওয়ালেট অ্যাড্রেসসমূহ:**\n"
         f"{COIN_WALLETS_INFO}\n\n"
-        f"📝 **কয়েনে ডিপোজিট করার নিয়ম:**\n"
+        f"📝 **ডিপোজিট করার নিয়ম:**\n"
         f"১. সঠিক কয়েন ও সঠিক নেটওয়ার্ক সিলেক্ট করে উপরের ওয়ালেট অ্যাড্রেসে কয়েন পাঠান।\n"
-        f"২. নিচের **✍️ কয়েন ডিপোজিট তথ্য জমা দিন** বাটনে চাপ দিয়ে **কয়েনের নাম, অ্যামাউন্ট ও TxID/Hash** লিখে পাঠান (যেমন: `20 USDT TRC20 TxID: 9a8b7c6d`)।\n"
-        f"৩. প্রয়োজনে যোগাযোগ করুন: {OWNER_USERNAME}"
+        f"২. নিচের **✍️ কয়েন ডিপোজিট তথ্য জমা দিন** বাটনে চাপ দিয়ে **কয়েনের নাম, অ্যামাউন্ট ও TxID/Hash** লিখে পাঠান (যেমন: `20 USDT TRC20 - TxID: 9a8b7c6d`)।\n"
+        f"৩. অথবা ১টি রেফারে **১০০ কয়েন** করে মোট **{FREE_DEPOSIT_TARGET_COINS:,} কয়েন** হলে **🎁 ফ্রি ডিপোজিট নিন** বাটন থেকে ফ্রি ডিপোজিট নিতে পারবেন।\n"
+        f"📞 যোগাযোগ: {OWNER_USERNAME}"
     )
 
 
@@ -286,6 +303,7 @@ def get_signal_control_keyboard() -> InlineKeyboardMarkup:
 def get_coin_deposit_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("✍️ কয়েন ডিপোজিট তথ্য জমা দিন", callback_data="submit_coin_deposit")],
+        [InlineKeyboardButton("🎁 ফ্রি ডিপোজিট নিন (10,000 কয়েন)", callback_data="claim_free_deposit")],
         [InlineKeyboardButton("💬 যোগাযোগ (@BDT588)", url=OWNER_CONTACT_URL)],
         [InlineKeyboardButton("🔙 মার্কেট মেনুতে ফিরে যান", callback_data="change_market")],
     ])
@@ -293,6 +311,7 @@ def get_coin_deposit_keyboard() -> InlineKeyboardMarkup:
 
 def get_referral_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🎁 ফ্রি ডিপোজিট নিন (10,000 কয়েন)", callback_data="claim_free_deposit")],
         [InlineKeyboardButton("🪙 কয়েনের মাধ্যমে ডিপোজিট করুন", callback_data="open_coin_deposit")],
         [InlineKeyboardButton("💬 যোগাযোগ (@BDT588)", url=OWNER_CONTACT_URL)],
         [InlineKeyboardButton("🔙 মার্কেট মেনুতে ফিরে যান", callback_data="change_market")],
@@ -463,6 +482,38 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         )
         return
 
+    if data == "claim_free_deposit":
+        coins = int(state.get("referral_bonus", 0) or 0)
+        if coins < FREE_DEPOSIT_TARGET_COINS:
+            needed = FREE_DEPOSIT_TARGET_COINS - coins
+            await query.answer(
+                f"ফ্রি ডিপোজিটের জন্য {FREE_DEPOSIT_TARGET_COINS:,} কয়েন লাগবে! আপনার আছে {coins:,} কয়েন (আরও {needed:,} কয়েন লাগবে)।",
+                show_alert=True,
+            )
+            return
+
+        state["referral_bonus"] = coins - FREE_DEPOSIT_TARGET_COINS
+        claimed = int(state.get("free_deposits_claimed", 0) or 0) + 1
+        state["free_deposits_claimed"] = claimed
+        logger.info(f"Free deposit claimed by user {user.id} ({user.first_name}) | Claim #{claimed}")
+
+        await query.answer("ফ্রি ডিপোজিট রিকোয়েস্ট সফল হয়েছে! 🎉", show_alert=False)
+        await query.message.reply_text(
+            f"🎁 **CONGRATULATIONS! ফ্রি ডিপোজিট আনলক হয়েছে!** 🎉\n"
+            f"▱▱▱▱▱▱▱▱▱▱▱▱▱▱\n"
+            f"👤 *User:* `{user.first_name}` (`ID: {user.id}`)\n"
+            f"🪙 *ব্যবহৃত কয়েন:* **{FREE_DEPOSIT_TARGET_COINS:,} কয়েন**\n"
+            f"💰 *অবশিষ্ট কয়েন:* **{int(state.get('referral_bonus', 0)):,} কয়েন**\n"
+            f"🆓 *মোট ফ্রি ডিপোজিট ক্লেইম:* **{claimed}টি**\n\n"
+            f"📌 আপনার ফ্রি ডিপোজিট রিকোয়েস্ট রেকর্ড করা হয়েছে। বিস্তারিত ও কনফার্মেশনের জন্য যোগাযোগ করুন: {OWNER_USERNAME}",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("💬 যোগাযোগ (@BDT588)", url=OWNER_CONTACT_URL)],
+                [InlineKeyboardButton("🔙 মার্কেট মেনুতে ফিরে যান", callback_data="change_market")],
+            ]),
+        )
+        return
+
     if not await is_user_joined(user.id, context):
         await query.answer("আগে চ্যানেলে জয়েন করুন!", show_alert=True)
         await query.message.reply_text(
@@ -479,11 +530,21 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             await send_market_prompt(query.message, user.first_name)
             return
 
-        period, time_left = generate_market_period(market_key)
+        current_period, time_left = generate_market_period(market_key)
         prev_period = str(state.get("last_period") or "")
         prev_pred = state.get("last_pred")
 
-        if prev_period and prev_period != period and isinstance(prev_pred, str) and prev_pred in ("BIG", "SMALL"):
+        # বর্তমান 1000 পিরিয়ডের সেকেন্ড শেষ না হওয়া পর্যন্ত নতুন সিগন্যাল নিতে পারবে না
+        if prev_period and prev_period == current_period:
+            await query.answer(
+                f"পিরিয়ড {current_period} এখনো চলছে! নতুন সিগন্যালের জন্য আর {time_left}s অপেক্ষা করুন।",
+                show_alert=True,
+            )
+            return
+
+        # আগের পিরিয়ডের সেকেন্ড শেষ হয়ে নতুন পিরিয়ড শুরু হয়েছে:
+        # ১) আগে আগের পিরিয়ডের রেজাল্ট (উইন হলে কনগ্রাচুলেশনস) পাঠাবে
+        if prev_period and prev_period != current_period and isinstance(prev_pred, str) and prev_pred in ("BIG", "SMALL"):
             result_msg = format_result_announcement(
                 user_name=user.first_name,
                 market_key=market_key,
@@ -492,13 +553,14 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             )
             await query.message.reply_text(text=result_msg, parse_mode="Markdown")
 
+        # ২) তারপর নতুন পিরিয়ডের নতুন সিগন্যাল কার্ড পাঠাবে
         card, pred_type = format_market_signal_card(
             user.first_name,
             market_key,
-            period,
+            current_period,
             time_left,
         )
-        state["last_period"] = period
+        state["last_period"] = current_period
         state["last_pred"] = pred_type
 
         await query.answer("নতুন সিগন্যাল পাঠানো হয়েছে! 🔄", show_alert=False)
@@ -546,7 +608,7 @@ def main() -> None:
     app.add_handler(CallbackQueryHandler(callback_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_message_handler))
 
-    logger.info("OWNER OF JOY — জয় (JOY) VIP Signal Bot with Coin Deposit started...")
+    logger.info("OWNER OF JOY — জয় (JOY) VIP Signal Bot started...")
     app.run_polling(drop_pending_updates=True)
 
 
