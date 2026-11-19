@@ -1,356 +1,197 @@
-"""
-=============================================================================
-PROPRIETARY AND CONFIDENTIAL - SIDDIK VIP & OWNER SAYEM WINGO 30S BOT
-Version: 5.0.0 (Enterprise Production Grade)
-Description: Advanced Telegram Signal Automation Bot with User Management,
-             Live Wingo 30s Period Generators, Interactive Web Entries,
-             Comprehensive Logging, and Robust Error Handling.
-=============================================================================
-"""
-
 import logging
-import sys
-import os
-from datetime import datetime, timezone, timedelta
-import pytz
-import random
-import time
-import asyncio
-from typing import Dict, Any, List, Optional
-
-# Telegram Bot Library Imports
+from datetime import datetime, timezone
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder,
     ContextTypes,
     CommandHandler,
     CallbackQueryHandler,
-    MessageHandler,
-    filters
 )
 
-# =============================================================================
-# SECTION 1: GLOBAL CONFIGURATION & LOGGING SETUP
-# =============================================================================
-
-# Telegram Bot API Token Configuration
-TOKEN = "9064976363:AAF5y_IVLOQYFCkbsEGlKKR8ae3zKxu6Hsk"
-
-# Logging Architecture Initialization
-LOG_FORMAT = '%(asctime)s [%(levelname)s] [%(filename)s:%(lineno)d] - %(message)s'
 logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     level=logging.INFO,
-    format=LOG_FORMAT,
-    handlers=[
-        logging.StreamHandler(sys.stdout)
-    ]
 )
-logger = logging.getLogger("WingoEnterpriseBot")
+logger = logging.getLogger("JoyWingoBot")
 
-# Timezone Configuration (Bangladesh Standard Time)
-BD_TIMEZONE = pytz.timezone('Asia/Dhaka')
+TOKEN = "9064976363:AAF5y_IVLOQYFCkbsEGlKKR8ae3zKxu6Hsk"
+CHANNEL_USERNAME = "@bdincomesitehgnice"
+CHANNEL_URL = "https://t.me/bdincomesitehgnice"
 
-# =============================================================================
-# SECTION 2: IN-MEMORY DATABASE & STATE MANAGEMENT SYSTEM
-# =============================================================================
 
-class BotDatabaseManager:
+def generate_html_style_period() -> tuple[str, int]:
     """
-    Manages in-memory storage for active users, statistics, user preferences,
-    and historical signal caching to ensure high throughput and low latency.
+    HTML কোডের মতো UTC সময় অনুযায়ী 30s পিরিয়ড নাম্বার ও বাকি সেকেন্ড বের করে।
     """
-    def __init__(self):
-        self.registered_users: Dict[int, Dict[str, Any]] = {}
-        self.signal_history: List[Dict[str, Any]] = []
-        self.active_sessions: int = 0
-        self.total_signals_generated: int = 0
-        logger.info("BotDatabaseManager initialized successfully.")
+    now = datetime.now(timezone.utc)
+    duration = 30
+    total_seconds_today = now.hour * 3600 + now.minute * 60 + now.second
+    elapsed_in_period = total_seconds_today % duration
+    period_index_today = (total_seconds_today // duration) + 1
 
-    def add_user(self, user_id: int, username: Optional[str], first_name: str) -> bool:
-        if user_id not in self.registered_users:
-            self.registered_users[user_id] = {
-                "username": username or "Unknown",
-                "first_name": first_name,
-                "joined_at": datetime.now(BD_TIMEZONE).isoformat(),
-                "signals_requested": 0,
-                "is_active": True
-            }
-            logger.info(f"New user registered: {user_id} ({first_name})")
-            return True
+    date_str = now.strftime("%Y%m%d")
+    formatted_index = str(50000 + period_index_today).zfill(5)
+    full_period = f"{date_str}1000{formatted_index}"
+    time_left = duration - elapsed_in_period
+    return full_period, time_left
+
+
+def generate_signal_from_period(full_period: str) -> tuple[str, str, int]:
+    """
+    HTML কোডের লজিক অনুযায়ী পিরিয়ড থেকে BIG/SMALL, কালার ও নাম্বার তৈরি করে।
+    """
+    seed_val = int(full_period[-5:]) if full_period[-5:].isdigit() else 12345
+    period_slot = int(datetime.now(timezone.utc).timestamp()) // 30
+    market_flow_trend = (seed_val * 31 + period_slot) % 100
+
+    is_big = market_flow_trend >= 46
+    pred_type = "BIG" if is_big else "SMALL"
+    action_text = f"BET {pred_type}"
+
+    if is_big:
+        lucky_num = 5 + ((seed_val + period_slot) % 5)
+    else:
+        lucky_num = (seed_val + period_slot) % 5
+
+    if lucky_num in (0, 5):
+        color_text = "🟣 VIOLET"
+    elif lucky_num in (1, 3, 7, 9):
+        color_text = "🟢 GREEN"
+    else:
+        color_text = "🔴 RED"
+
+    return action_text, color_text, lucky_num
+
+
+def format_signal_card(user_name: str) -> str:
+    full_period, time_left = generate_html_style_period()
+    action_text, color_text, lucky_num = generate_signal_from_period(full_period)
+
+    return (
+        f"👑 **OWNER OF JOY — VIP SIGNAL** 👑\n"
+        f"👤 *User:* `{user_name}`\n"
+        f"▱▱▱▱▱▱▱▱▱▱▱▱▱▱\n"
+        f"💎 **𝐏𝐄𝐑𝐈𝐎𝐃** ➤ 📅 `{full_period}`\n"
+        f"⏳ **𝐓𝐈𝐌𝐄 𝐋𝐄𝐅𝐓** ➤ `{time_left:02d}s`\n"
+        f"🎯 **𝐀𝐂𝐓𝐈𝐎𝐍** ➤ **{action_text}**\n"
+        f"🎨 **𝐂𝐎𝐋𝐎𝐑** ➤ {color_text}\n"
+        f"🔢 **𝐍𝐔𝐌𝐁𝐄𝐑** ➤ 💠  {lucky_num}\n"
+        f"⚡ **𝐖𝐈𝐍𝐆𝐎** ➤ 𝟯𝟬𝗦 ⏱️\n"
+        f"▱▱▱▱▱▱▱▱▱▱▱▱▱▱"
+    )
+
+
+async def is_user_joined(user_id: int, context: ContextTypes.DEFAULT_TYPE) -> bool:
+    try:
+        member = await context.bot.get_chat_member(chat_id=CHANNEL_USERNAME, user_id=user_id)
+        return member.status in ("member", "administrator", "creator", "restricted")
+    except Exception as e:
+        logger.warning(f"Channel membership check failed for {user_id}: {e}")
         return False
 
-    def increment_user_signal_count(self, user_id: int) -> None:
-        if user_id in self.registered_users:
-            self.registered_users[user_id]["signals_requested"] += 1
-            self.total_signals_generated += 1
 
-    def log_signal(self, period: str, action: str, color: str, number: str) -> None:
-        signal_entry = {
-            "period": period,
-            "action": action,
-            "color": color,
-            "number": number,
-            "timestamp": datetime.now(BD_TIMEZONE).isoformat()
-        }
-        self.signal_history.append(signal_entry)
-        # Keep only the last 500 signals in memory
-        if len(self.signal_history) > 500:
-            self.signal_history.pop(0)
+def get_join_verify_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("📢 টেলিগ্রাম চ্যানেল জয়েন", url=CHANNEL_URL)],
+        [InlineKeyboardButton("✅ জয়েন ভেরিফাই করুন", callback_data="verify_join")],
+    ])
 
-db = BotDatabaseManager()
 
-# =============================================================================
-# SECTION 3: ADVANCED WINGO 30S ALGORITHM & MATH ENGINE
-# =============================================================================
+def get_signal_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🔄 নতুন সিগন্যাল", callback_data="refresh_signal")]
+    ])
 
-class WingoEngine:
-    """
-    Core mathematical engine responsible for precise Wingo 30-second period calculation
-    and high-entropy deterministic prediction generation based on timestamp vectors.
-    """
-    @staticmethod
-    def calculate_current_period() -> str:
-        try:
-            now = datetime.now(BD_TIMEZONE)
-            date_str = now.strftime("%Y%m%d")
-            total_seconds = now.hour * 3600 + now.minute * 60 + now.second
-            # 30-second intervals per day calculation
-            period_index = (total_seconds // 30) + 1000
-            period_id = f"{date_str}100{period_index}"
-            return period_id
-        except Exception as e:
-            logger.error(f"Error calculating period ID: {e}")
-            fallback_time = datetime.now(BD_TIMEZONE)
-            return fallback_time.strftime("%Y%m%d1009999")
 
-    @staticmethod
-    def generate_signal_payload() -> tuple[str, str, str]:
-        """
-        Generates structured betting options including actions, colors, and specific numbers.
-        """
-        strategies = [
-            ("BET BIG", "🔴 RED", "7"),
-            ("BET SMALL", "🟢 GREEN", "2"),
-            ("BET BIG", "🟢 GREEN", "9"),
-            ("BET SMALL", "🔴 RED", "4"),
-            ("BET BIG", "🔴 RED", "5"),
-            ("BET SMALL", "🟢 GREEN", "0")
-        ]
-        chosen_action, chosen_color, chosen_number = random.choice(strategies)
-        return chosen_action, chosen_color, chosen_number
+async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user = update.effective_user
+    if not user or not update.message:
+        return
 
-# =============================================================================
-# SECTION 4: TEMPLATE RENDERER & UI COMPONENT BUILDER
-# =============================================================================
-
-class MessageTemplates:
-    """
-    Handles formatting of gorgeous gamer-style UI messages with proper markdown
-    and brand identity headers for Owner Sayem and Siddik VIP Signal.
-    """
-    @staticmethod
-    def build_signal_message(user_name: str, period: str, action: str, color: str, number: str) -> str:
-        return (
-            f"👑 **OWNER SAYEM & SIDDIK VIP SIGNAL** 👑\n"
-            f"👤 *Trader:* `{user_name}`\n"
-            f"▱▱▱▱▱▱▱▱▱▱▱▱▱▱\n"
-            f"💎 **𝐏𝐄𝐑𝐈𝐎𝐃** ➤ 📅 `{period}`\n"
-            f"🎯 **𝐀𝐂𝐓𝐈𝐎𝐍** ➤ **{action}**\n"
-            f"🎨 **𝐂𝐎𝐋𝐎𝐑** ➤ {color}\n"
-            f"🔢 **𝐍𝐔𝐌𝐁𝐄𝐑** ➤ 💠  {number} \n"
-            f"⚡ **𝐖𝐈𝐍𝐆𝐎** ➤ 𝟯𝟬𝗦 ⏱️\n"
-            f"▱▱▱▱▱▱▱▱▱▱▱▱▱▱\n"
-            f"🔗 **𝗗𝗜𝗥𝗘𝗖𝗧 𝗪𝗘𝗕 𝗘𝗡𝗧𝗥𝗬**"
-        )
-
-    @staticmethod
-    def build_welcome_message(user_name: str) -> str:
-        return (
-            f"🌟 **WELCOME TO SIDDIK VIP ENTERPRISE BOT** 🌟\n\n"
-            f"হ্যালো **{user_name}**! Wingo 30s অটোমেটেড সিগন্যাল সিস্টেমে আপনাকে স্বাগতম।\n\n"
-            f"নিচে কমান্ড মেনু ব্যবহার করে লাইভ সিগন্যাল গ্রহণ করুন:\n"
-            f"👉 /signal - রিয়েল-টাইম সিগন্যাল দেখতে\n"
-            f"👉 /stats - আপনার বট স্ট্যাটিস্টিকস দেখতে\n"
-            f"👉 /help - সাহায্যের জন্য"
-        )
-
-    @staticmethod
-    def get_inline_keyboard() -> InlineKeyboardMarkup:
-        keyboard = [
-            [InlineKeyboardButton("🌐 𝗖𝗟𝗜𝗖𝗞 𝗛𝗘𝗥𝗘 𝗧𝗢 𝗣𝗟𝗔𝗬", url="https://example.com")],
-            [InlineKeyboardButton("🔄 𝗚𝗘𝗧 𝗡𝗘𝗪 𝗦𝗜𝗚𝗡𝗔𝗟", callback_data="refresh_signal")]
-        ]
-        return InlineKeyboardMarkup(keyboard)
-
-# =============================================================================
-# SECTION 5: COMMAND CONTROLLERS & EVENT HANDLERS
-# =============================================================================
-
-async def command_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """
-    Controller for the /start command. Registers user and renders rich greeting UI.
-    """
-    try:
-        user = update.effective_user
-        if not user:
-            return
-        
-        db.add_user(user.id, user.username, user.first_name)
-        welcome_txt = MessageTemplates.build_welcome_message(user.first_name)
-        
-        # Also auto-generate and append a live signal on start as requested
-        period = WingoEngine.calculate_current_period()
-        action, color, number = WingoEngine.generate_signal_payload()
-        signal_txt = MessageTemplates.build_signal_message(user.first_name, period, action, color, number)
-        
-        full_message = f"{welcome_txt}\n\n👇 **CURRENT ACTIVE SIGNAL:**\n\n{signal_txt}"
-        
-        db.increment_user_signal_count(user.id)
-        db.log_signal(period, action, color, number)
-
+    joined = await is_user_joined(user.id, context)
+    if not joined:
         await update.message.reply_text(
-            full_message,
-            parse_mode='Markdown',
-            reply_markup=MessageTemplates.get_inline_keyboard()
+            "🔒 **সিগন্যাল পেতে হলে আগে আমাদের টেলিগ্রাম চ্যানেলে জয়েন করতে হবে!**\n\n"
+            "নিচের বাটনে ক্লিক করে চ্যানেলে জয়েন করুন, তারপর **✅ জয়েন ভেরিফাই করুন** চাপুন।",
+            parse_mode="Markdown",
+            reply_markup=get_join_verify_keyboard(),
         )
-        logger.info(f"Command /start executed successfully for user {user.id}")
-    except Exception as e:
-        logger.error(f"Error in command_start: {e}")
+        return
 
-async def command_signal(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """
-    Controller for the /signal command. Yields high-precision trading signals.
-    """
-    try:
-        user = update.effective_user
-        if not user:
-            return
-
-        db.add_user(user.id, user.username, user.first_name)
-        period = WingoEngine.calculate_current_period()
-        action, color, number = WingoEngine.generate_signal_payload()
-        
-        signal_txt = MessageTemplates.build_signal_message(user.first_name, period, action, color, number)
-        
-        db.increment_user_signal_count(user.id)
-        db.log_signal(period, action, color, number)
-
-        await update.message.reply_text(
-            signal_txt,
-            parse_mode='Markdown',
-            reply_markup=MessageTemplates.get_inline_keyboard()
-        )
-        logger.info(f"Command /signal executed for user {user.id} - Period: {period}")
-    except Exception as e:
-        logger.error(f"Error in command_signal: {e}")
-
-async def command_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """
-    Displays runtime telemetry and user analytics.
-    """
-    try:
-        user_count = len(db.registered_users)
-        total_sigs = db.total_signals_generated
-        stats_text = (
-            f"📊 **BOT SYSTEM TELEMETRY & STATS** 📊\n"
-            f"▱▱▱▱▱▱▱▱▱▱▱▱▱▱\n"
-            f"👥 **Registered Users:** `{user_count}`\n"
-            f"⚡ **Total Signals Dispatched:** `{total_sigs}`\n"
-            f"🟢 **System Status:** `ONLINE (Enterprise Mode)`\n"
-            f"🕒 **Server Timezone:** `Asia/Dhaka`"
-        )
-        await update.message.reply_text(stats_text, parse_mode='Markdown')
-    except Exception as e:
-        logger.error(f"Error in command_stats: {e}")
-
-async def command_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    help_text = (
-        f"🛠️ **HELP & SUPPORT CENTER** 🛠️\n\n"
-        f"এই বটটি Wingo 30s এর জন্য রিয়েল-টাইম সিগন্যাল প্রদান করে।\n"
-        f"• `/start` - বট চালু করুন ও নতুন সিগন্যাল পান\n"
-        f"• `/signal` - নতুন সিগন্যাল জেনারেট করুন\n"
-        f"• `/stats` - সিস্টেম স্ট্যাটাস দেখুন"
+    await update.message.reply_text(
+        format_signal_card(user.first_name),
+        parse_mode="Markdown",
+        reply_markup=get_signal_keyboard(),
     )
-    await update.message.reply_text(help_text, parse_mode='Markdown')
 
-async def button_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """
-    Handles inline button callbacks for interactive refreshes.
-    """
-    try:
-        query = update.callback_query
-        await query.answer()
-        
-        if query.data == "refresh_signal":
-            user = query.from_user
-            period = WingoEngine.calculate_current_period()
-            action, color, number = WingoEngine.generate_signal_payload()
-            
-            updated_signal_txt = MessageTemplates.build_signal_message(
-                user.first_name, period, action, color, number
-            )
-            
-            db.increment_user_signal_count(user.id)
-            db.log_signal(period, action, color, number)
 
+async def signal_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user = update.effective_user
+    if not user or not update.message:
+        return
+
+    joined = await is_user_joined(user.id, context)
+    if not joined:
+        await update.message.reply_text(
+            "🔒 **আগে টেলিগ্রাম চ্যানেলে জয়েন করুন!**\n\n"
+            "জয়েন করার পর **✅ জয়েন ভেরিফাই করুন** বাটনে চাপ দিন।",
+            parse_mode="Markdown",
+            reply_markup=get_join_verify_keyboard(),
+        )
+        return
+
+    await update.message.reply_text(
+        format_signal_card(user.first_name),
+        parse_mode="Markdown",
+        reply_markup=get_signal_keyboard(),
+    )
+
+
+async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    if not query or not query.from_user:
+        return
+
+    user = query.from_user
+    if query.data == "verify_join":
+        joined = await is_user_joined(user.id, context)
+        if joined:
+            await query.answer("ভেরিফাই সফল হয়েছে! ✅", show_alert=False)
             await query.edit_message_text(
-                text=updated_signal_txt,
-                parse_mode='Markdown',
-                reply_markup=MessageTemplates.get_inline_keyboard()
+                text=format_signal_card(user.first_name),
+                parse_mode="Markdown",
+                reply_markup=get_signal_keyboard(),
             )
-            logger.info(f"Signal refreshed via inline button by user {user.id}")
-    except Exception as e:
-        logger.error(f"Error in button_callback_handler: {e}")
+        else:
+            await query.answer("আপনি এখনো চ্যানেলে জয়েন করেননি! আগে জয়েন করুন।", show_alert=True)
 
-# =============================================================================
-# SECTION 6: ERROR MIDDLEWARE & EXCEPTION ROUTING
-# =============================================================================
+    elif query.data == "refresh_signal":
+        joined = await is_user_joined(user.id, context)
+        if not joined:
+            await query.answer("আগে চ্যানেলে জয়েন করুন!", show_alert=True)
+            await query.edit_message_text(
+                text="🔒 **আপনি চ্যানেল থেকে লিভ নিয়েছেন বা জয়েন করেননি। আগে জয়েন করুন!**",
+                parse_mode="Markdown",
+                reply_markup=get_join_verify_keyboard(),
+            )
+            return
 
-async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """
-    Global error catcher to ensure the bot loop never terminates unexpectedly.
-    """
-    logger.error(f"Exception while handling an update: {context.error}")
+        await query.answer("নতুন সিগন্যাল আপডেট হয়েছে! 🔄", show_alert=False)
+        await query.edit_message_text(
+            text=format_signal_card(user.first_name),
+            parse_mode="Markdown",
+            reply_markup=get_signal_keyboard(),
+        )
 
-# =============================================================================
-# SECTION 7: CORE INITIALIZATION AND MAIN ENTRYPOINT
-# =============================================================================
 
 def main() -> None:
-    """
-    Main entrypoint function to initialize application handlers, middleware,
-    and start polling under Render's continuous deployment architecture.
-    """
-    logger.info("Initializing Siddik VIP & Owner Sayem Enterprise Bot...")
-    
-    if not TOKEN:
-        logger.critical("API Token is missing! Termination imminent.")
-        sys.exit(1)
+    app = ApplicationBuilder().token(TOKEN).build()
+    app.add_handler(CommandHandler("start", start_command))
+    app.add_handler(CommandHandler("signal", signal_command))
+    app.add_handler(CallbackQueryHandler(callback_handler))
+    logger.info("Bot started...")
+    app.run_polling(drop_pending_updates=True)
 
-    try:
-        # Build application instance with optimized configuration
-        application = ApplicationBuilder().token(TOKEN).build()
 
-        # Register Command Handlers
-        application.add_handler(CommandHandler('start', command_start))
-        application.add_handler(CommandHandler('signal', command_signal))
-        application.add_handler(CommandHandler('stats', command_stats))
-        application.add_handler(CommandHandler('help', command_help))
-
-        # Register Callback Query Handlers
-        application.add_handler(CallbackQueryHandler(button_callback_handler))
-
-        # Register Error Handler Middleware
-        application.add_error_handler(error_handler)
-
-        logger.info("All handlers registered successfully. Starting long polling...")
-        
-        # Start application polling
-        application.run_polling(drop_pending_updates=True)
-
-    except Exception as critical_err:
-        logger.critical(f"Critical failure during bot startup: {critical_err}")
-        sys.exit(1)
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
