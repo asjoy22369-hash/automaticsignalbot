@@ -22,7 +22,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("JoyWingoVIPBot")
 
-TOKEN = "9064976363:AAF5y_IVLOQYFCkbsEGlKKR8ae3zKxu6Hsk"
+TOKEN = "9049655726:AAGhdmogKzkYOsyzJs-cv-6mtP7pY0PVtWA"
 CHANNEL_ID = "@bdincomesitehgnice"
 CHANNEL_URL = "https://t.me/bdincomesitehgnice"
 OWNER_USERNAME = "@BDT588"
@@ -383,7 +383,7 @@ async def send_market_prompt(message_obj, user_name: str, state: dict[str, objec
         f"{BOT_TOP_DESCRIPTION}\n"
         f"▱▱▱▱▱▱▱▱▱▱▱▱▱▱\n"
         f"স্বাগতম **{user_name}**! 🌟\n"
-        f"👇 **অপশন চালু করতে নিচের `{BTN_MENU_OPEN}` বাটনে ক্লিক করুন:**"
+        f"আপনি কয় সেকেন্ডে ট্রেড করতে চান? আপনি ১ মিনিটে (`1M`) না ৩০ সেকেন্ডে (`30S`)—অপশন চালু করতে নিচের `{BTN_MENU_OPEN}` বাটনে ক্লিক করুন:"
     )
     await message_obj.reply_text(
         text=text,
